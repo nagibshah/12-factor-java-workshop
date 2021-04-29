@@ -1,4 +1,4 @@
-package com.12factor.uploadtrigger;
+package com.twelvefactor.activitypoller;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
