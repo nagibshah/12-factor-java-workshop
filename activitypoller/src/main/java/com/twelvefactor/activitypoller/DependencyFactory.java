@@ -1,5 +1,5 @@
 
-package com.12factor.uploadtrigger;
+package com.twelvefactor.activitypoller;
 
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;

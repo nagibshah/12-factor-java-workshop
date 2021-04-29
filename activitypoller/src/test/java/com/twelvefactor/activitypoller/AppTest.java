@@ -1,8 +1,7 @@
-package com.12factor.uploadtrigger;
+package com.twelvefactor.activitypoller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.twelvefactor.uploadtrigger.App;
 import org.junit.jupiter.api.Test;
 
 public class AppTest {
