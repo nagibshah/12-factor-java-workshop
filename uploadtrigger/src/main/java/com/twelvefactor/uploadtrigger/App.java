@@ -2,6 +2,7 @@ package com.twelvefactor.uploadtrigger;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +16,6 @@ import com.amazonaws.services.lambda.runtime.events.S3Event;
 import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.rekognition.model.*;
 import software.amazon.awssdk.services.rekognition.model.S3Object;
-import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -26,6 +26,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.sfn.model.SfnException;
+import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
+import software.amazon.awssdk.services.sfn.model.StartExecutionResponse;
 
 /**
  * Lambda function entry point. You can change to use other pojo type or implement
@@ -34,7 +37,6 @@ import org.slf4j.LoggerFactory;
  * @see <a href=https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html>Lambda Java Handler</a> for more information
  */
 public class App implements RequestHandler<S3Event, String> {
-    private final S3Client s3Client;
     private final RekognitionClient rekognitionClient;
     private final AWSXRayRecorder xrayRecorder;
     private final SfnClient sfnClient;
@@ -46,12 +48,10 @@ public class App implements RequestHandler<S3Event, String> {
     public App() {
         // Initialize the SDK client outside of the handler method so that it can be reused for subsequent invocations.
         // It is initialized when the class is loaded.
-        s3Client = DependencyFactory.s3Client();
         rekognitionClient = DependencyFactory.rekognitionClient();
         xrayRecorder = DependencyFactory.awsxRayRecorder();
         sfnClient = DependencyFactory.sfnClient();
         secretsManagerClient = DependencyFactory.secretsManagerClient();
-
         // Consider invoking a simple api here to pre-warm up the application, eg: dynamodb#listTables
     }
 
@@ -72,8 +72,8 @@ public class App implements RequestHandler<S3Event, String> {
             objectSize = record.getS3().getObject().getSizeAsLong();
             tollCharge = Integer.parseInt(System.getenv("TollgateCharge"));
 
-            logger.info("Bucket Name is "+record.getS3().getBucket().getName());
-            logger.info("File Path is "+record.getS3().getObject().getKey());
+            logger.info(String.format("Bucket Name is: %s",record.getS3().getBucket().getName()));
+            logger.info(String.format("File Path is %s",record.getS3().getObject().getKey()));
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -122,17 +122,18 @@ public class App implements RequestHandler<S3Event, String> {
                     && textItem.type().name().equals("LINE")) {
                 // Regex matches
                 //List<String> allMatches = new ArrayList<String>();
-                String plateNumber = "";
+                StringBuilder plateNumber = new StringBuilder();
                 Matcher m = Pattern.compile(regExNumberPlate).matcher(textItem.detectedText());
                 while (m.find()) {
-                    plateNumber += m.group();
+                    // TODO: test to see if a full number plate is extracted 
+                    plateNumber.append(m.group());
                     //allMatches.add(m.group());
                 }
-                if (!Strings.isNullOrEmpty(plateNumber)) {
+                if (!Strings.isNullOrEmpty(plateNumber.toString())) {
                     result.numberPlate.detected = true;
                     result.numberPlate.confidence = textItem.confidence();
-                    result.numberPlate.numberPlateString = plateNumber;
-                    logger.info(String.format("A valid plate number was detected %s",plateNumber));
+                    result.numberPlate.numberPlateString = plateNumber.toString();
+                    logger.info(String.format("A valid plate number was detected %s", plateNumber));
                 }
             }
         }
@@ -149,8 +150,20 @@ public class App implements RequestHandler<S3Event, String> {
         // Kick off the step function
         //
         logger.info("Starting the state machine");
-        // call step function here
-        logger.info("State Machine started");
+        // specify the name of the execution using a guid value
+        String uuid = UUID.randomUUID().toString();
+        try {
+            StartExecutionRequest executionRequest = StartExecutionRequest.builder()
+                    .input(gson.toJson(result))
+                    .stateMachineArn(System.getenv("NumberPlateProcessStateMachine"))
+                    .name(uuid)
+                    .build();
+            StartExecutionResponse executionResponse = sfnClient.startExecution(executionRequest);
+            logger.info(String.format("State Machine started with execution arn: %s",executionResponse.executionArn()));
+        } catch (SfnException e) {
+            logger.error(String.format("Failed to trigger the step function workflow with error: %s", e.getMessage()));
+            System.exit(1);
+        }
 
         logger.info("Successfully processed s3 event.");
         return "Ok";
@@ -165,16 +178,15 @@ public class App implements RequestHandler<S3Event, String> {
             GetSecretValueResponse valueResponse = secretsClient.getSecretValue(valueRequest);
             secret = valueResponse.secretString();
         } catch (SecretsManagerException e) {
-            logger.error("Failed to get secret from secrets manager with error " + e.awsErrorDetails().errorMessage());
+            logger.error(String.format("Failed to get secret from secrets manager with error %s",e.awsErrorDetails().errorMessage()));
             secret = null;
         }
 
-        // Decrypts secret using the associated KMS CMK.
-        // Depending on whether the secret is a string or binary, one of these fields will be populated.
+        // TODO: test to verify Decrypts secret using the associated KMS CMK. - NOT REQUIRED AS DATA IS NOT ENCRYPTED?
+        // Depending on whether the secret is a string or binary, one of these fields will be populated
         logger.info("NumberPlateRegEx value is " + secret);
 
         return secret;
     }
-
 
 }
