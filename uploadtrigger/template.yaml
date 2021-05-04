@@ -7,7 +7,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Runtime: java8
-      Handler: com.12factor.uploadtrigger.App::handleRequest
+      Handler: com.twelvefactor.uploadtrigger.App::handleRequest
       Timeout: 60
       MemorySize: 512
       CodeUri: ./target/uploadtrigger.jar
