@@ -1,8 +1,8 @@
 package com.twelvefactor.uploadtrigger;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,6 +13,7 @@ import jdk.internal.joptsimple.internal.Strings;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.S3Event;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.rekognition.model.*;
 import software.amazon.awssdk.services.rekognition.model.S3Object;
@@ -24,6 +25,7 @@ import software.amazon.awssdk.services.sfn.SfnClient;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sfn.model.SfnException;
@@ -125,7 +127,7 @@ public class App implements RequestHandler<S3Event, String> {
                 StringBuilder plateNumber = new StringBuilder();
                 Matcher m = Pattern.compile(regExNumberPlate).matcher(textItem.detectedText());
                 while (m.find()) {
-                    // TODO: test to see if a full number plate is extracted 
+                    // TODO: test to see if a full number plate is extracted
                     plateNumber.append(m.group());
                     //allMatches.add(m.group());
                 }
@@ -170,23 +172,39 @@ public class App implements RequestHandler<S3Event, String> {
     }
 
     private String getSecretFromSecretsManager(SecretsManagerClient secretsClient, String secretName) {
-        String secret;
+        String regex;
         // get the secret from the secret manager
         try {
             GetSecretValueRequest valueRequest = GetSecretValueRequest.builder()
                     .secretId(secretName).build();
             GetSecretValueResponse valueResponse = secretsClient.getSecretValue(valueRequest);
-            secret = valueResponse.secretString();
+
+
+            // TODO: test to verify: Decrypts secret using the associated KMS CMK.
+            // Depending on whether the secret is a string or binary, one of these fields will be populated
+
+            if (valueResponse.secretString() != null) {
+                String decodedSecret = valueResponse.secretString();
+                logger.info("NumberPlateRegEx value is " + decodedSecret);
+                Type type = new TypeToken<HashMap<String, String>>(){}.getType();
+                HashMap<String, String> deserialized = gson.fromJson(decodedSecret,type);
+                regex = deserialized.get("NumberPlateRegEx");
+            }
+            else {
+                SdkBytes secretBlob = valueResponse.secretBinary();
+                String decodedBinarySecret = StandardCharsets.UTF_8.decode(Base64.getDecoder().decode(secretBlob.asByteBuffer())).toString();
+
+                Type type = new TypeToken<HashMap<String, String>>(){}.getType();
+                HashMap<String, String> deserialized = gson.fromJson(decodedBinarySecret,type);
+                regex = deserialized.get("NumberPlateRegEx");
+                //secret = StandardCharsets.UTF_8.decode(memoryStream.asByteBuffer()).toString();
+            }
         } catch (SecretsManagerException e) {
             logger.error(String.format("Failed to get secret from secrets manager with error %s",e.awsErrorDetails().errorMessage()));
-            secret = null;
+            regex = null;
         }
 
-        // TODO: test to verify Decrypts secret using the associated KMS CMK. - NOT REQUIRED AS DATA IS NOT ENCRYPTED?
-        // Depending on whether the secret is a string or binary, one of these fields will be populated
-        logger.info("NumberPlateRegEx value is " + secret);
-
-        return secret;
+        return regex;
     }
 
 }
