@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform:
+- AWS::Serverless-2016-10-31
+
+Description: An AWS Serverless Application that uses the ASP.NET Core framework running in Amazon Lambda.
+
+# Enable blue/green deployments using this Globals section. For instructions, see the AWS CodeStar User Guide:
+# https://docs.aws.amazon.com/codestar/latest/userguide/how-to-modify-serverless-project.html?icmpid=docs_acs_rm_tr
+#
+# Globals:
+#   Function:
+#     AutoPublishAlias: live
+#     DeploymentPreference:
+#       Enabled: true
+#       Type: Canary10Percent5Minutes
+Parameters:
+
+  DDBTableNameSSMParam:
+    Type: 'AWS::SSM::Parameter::Value<String>'  
+    Description: The SSM param name for the DynamoDB table name
+
+  EnvironmentName:
+    Default: Staging
+    AllowedValues: 
+      - Staging
+      - Prod
+    Description: >-
+      The name of the environment - either Staging or Prod
+    Type: String
+
+Resources:
+  TollRoadManagerWebsite:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: {{cookiecutter.project_name_website}}::TollRoadManagerWebsite.LambdaEntryPoint::FunctionHandlerAsync
+      Runtime: dotnetcore2.1
+      CodeUri: 'release_artefact.zip'
+      MemorySize: 1024
+      Timeout: 30
+      Role: 
+      Policies:
+      - AWSLambdaFullAccess
+      - AWSStepFunctionsFullAccess
+      Environment:
+        Variables:
+          EnvironmentName:
+            Ref: EnvironmentName
+          DDBTableName:
+            Ref: DDBTableNameSSMParam
+      Events:
+        ProxyResource:
+          Type: Api
+          Properties:
+            Path: "/{proxy+}"
+            Method: ANY
+        RootResource:
+          Type: Api
+          Properties:
+            Path: "/"
+            Method: ANY
+            
+  paramWebsiteUrl:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/APIGWEndpoint
+      Type: String
+      Value:
+        Fn::Sub: 
+          https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+
+Outputs:
+  ApiURL:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: 
+        https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Stage

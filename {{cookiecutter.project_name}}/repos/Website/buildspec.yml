@@ -1,0 +1,20 @@
+version: 0.2
+phases:
+
+  pre_build:
+    commands:
+      - dotnet restore {{cookiecutter.project_name_website}}/{{cookiecutter.project_name_website}}.csproj
+
+  build:
+    commands:
+      - cd {{cookiecutter.project_name_website}}
+      - dotnet lambda package release_artefact.zip 
+      - aws cloudformation package --template template.yml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file template-export.yml 
+      - mv template-export.yml ../template-export.yml
+cache:
+  paths:
+    - '/root/.nuget/packages/**/*'
+artifacts:
+  files:
+    - template-export.yml
+    

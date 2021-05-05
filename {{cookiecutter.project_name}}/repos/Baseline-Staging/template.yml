@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: >-
+  Sets up the baseline for the Toll Road Gantry System
+
+Parameters:
+  DDBTableName:
+    Default: {{cookiecutter.dynamodb_tablename}}
+    Description: The name of the DynamoDB table that holds the number plate source data
+    Type: String
+
+  ManualImageInspectionTargetEmail:
+    Default: {{cookiecutter.your_email_address}}
+    Description: >-
+      The email address to send notification of manual inspection of number
+      plate required
+    Type: String
+    
+  EnvironmentName:
+    Default: Staging
+    AllowedValues: 
+      - Staging
+      - Prod
+    Description: >-
+      The name of the environment - either Staging or Prod
+    Type: String
+
+Resources:
+  paramDDBTable:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/DDBTableName
+        Description: The name of the DynamoDB table that holds the number plate source data
+        Type: String
+        Value: !Sub '${DDBTableName}-${EnvironmentName}'
+  paramManualImageInspectionTargetEmail:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/ManualImageInspectionTargetEmail
+        Description: The email address to send notification of manual inspection of number plate required
+        Type: String
+        Value: !Sub '${ManualImageInspectionTargetEmail}'
+  DDBTableTollGantryData:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      TableName: !Sub '${DDBTableName}-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: numberPlate
+          AttributeType: S
+      KeySchema:
+        - AttributeName: numberPlate
+          KeyType: HASH        
+

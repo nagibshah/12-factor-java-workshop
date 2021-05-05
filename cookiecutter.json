@@ -1,0 +1,19 @@
+{
+    "_extensions": ["jinja2_time.TimeExtension"],
+
+    "your_name": "",
+    "your_email_address" : "",
+
+    "project_name": "TollGantrySystem",
+    "project_name_baseline": "{{cookiecutter.project_name.replace(' ', '-')}}-Baseline",
+    "project_name_acquire": "{{cookiecutter.project_name.replace(' ', '-')}}-Acquire",
+    "project_name_agent": "{{cookiecutter.project_name.replace(' ', '-')}}-Agent",
+    "project_name_process": "{{cookiecutter.project_name.replace(' ', '-')}}-Process",
+    "project_name_website": "{{cookiecutter.project_name.replace(' ', '-')}}-Website",
+    "dynamodb_tablename": "{{cookiecutter.project_name.replace(' ', '-')}}-Accounts",
+    "stepfunction_name": "{{cookiecutter.project_name}}",
+    "AWS_region" : "ap-southeast-2",
+    "numberplate_regex" : "^([A-Z0-9]{3})[vV ]*([A-Z0-9]{3})$",
+    "codeupload_bucket_name": "{{cookiecutter.project_name|lower|replace(' ', '-')}}-{{cookiecutter.your_name|lower|replace(' ', '-')}}-{% now 'utc', '%m%s' %}-code",
+    "imageupload_bucket_name": "{{cookiecutter.project_name|lower|replace(' ', '-')}}-{{cookiecutter.your_name|lower|replace(' ', '-')}}-{% now 'utc', '%m%s' %}-uploads"
+}
