@@ -176,16 +176,17 @@ public class App implements RequestHandler<S3Event, String> {
         // get the secret from the secret manager
         try {
             GetSecretValueRequest valueRequest = GetSecretValueRequest.builder()
-                    .secretId(secretName).build();
+                    .secretId(secretName)
+                    .versionStage("AWSCURRENT") // VersionStage defaults to AWSCURRENT if unspecified.
+                    .build();
             GetSecretValueResponse valueResponse = secretsClient.getSecretValue(valueRequest);
-
 
             // TODO: test to verify: Decrypts secret using the associated KMS CMK.
             // Depending on whether the secret is a string or binary, one of these fields will be populated
 
             if (valueResponse.secretString() != null) {
                 String decodedSecret = valueResponse.secretString();
-                logger.info("NumberPlateRegEx value is " + decodedSecret);
+                logger.info("Secret value is " + decodedSecret);
                 Type type = new TypeToken<HashMap<String, String>>(){}.getType();
                 HashMap<String, String> deserialized = gson.fromJson(decodedSecret,type);
                 regex = deserialized.get("NumberPlateRegEx");
@@ -197,12 +198,13 @@ public class App implements RequestHandler<S3Event, String> {
                 Type type = new TypeToken<HashMap<String, String>>(){}.getType();
                 HashMap<String, String> deserialized = gson.fromJson(decodedBinarySecret,type);
                 regex = deserialized.get("NumberPlateRegEx");
-                //secret = StandardCharsets.UTF_8.decode(memoryStream.asByteBuffer()).toString();
             }
         } catch (SecretsManagerException e) {
             logger.error(String.format("Failed to get secret from secrets manager with error %s",e.awsErrorDetails().errorMessage()));
             regex = null;
         }
+
+        logger.info("NumberPlateRegEx value is " + regex);
 
         return regex;
     }
