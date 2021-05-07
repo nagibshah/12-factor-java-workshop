@@ -1,0 +1,40 @@
+﻿@page
+@model PlateParseModel
+@{
+    ViewData["Title"] = "Plate Parser";
+}
+
+<h2>Toll Road Number Plate Manual Decider</h2>
+@if (!Model.submissionSucceeded)
+{
+    <p>Please take a look at the image shown here, and enter the number plate you see:</p>
+
+    <img src="@Model.imageLinkNumberPlate" />
+
+    <br />
+
+    <form method="post">
+        <div>
+            <input asp-for="numberPlateDeterminedByUser" value="" /><button style="margin-left:20px" type="submit">Submit this number plate</button>
+        </div>
+    </form>
+}
+
+@if (Model.errorOccurred)
+{
+    <br />
+    <div class="alert alert-danger" role="alert">
+        <a href="#" class="alert-link"><b>Oh No!</b>  Looks like an error has occurred!</a>
+    </div>
+}
+else
+{
+    @if (Model.submissionSucceeded)
+    {
+        <br />
+        <div class="alert alert-success" role="alert">
+            <a href="#" class="alert-link">Thank you for helping, your submission was accepted!</a>
+        </div>
+    }
+}
+

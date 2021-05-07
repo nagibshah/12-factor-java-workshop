@@ -1,0 +1,107 @@
+        'Fn::Sub':
+          - |-
+            {
+              "Comment": "Processes image files containing number plates and charges drivers tolls. Uses a manual decider if the number plate can't be read. Triggers a reminder to top up their account if the driver's account is out of credit.",
+              "StartAt": "state.decision.NumberPlateParseSelector",
+              "States": {
+                "state.decision.NumberPlateParseSelector": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.numberPlate.detected",
+                      "BooleanEquals": true,
+                      "Next": "state.process.Type.NumberPlateDetected"
+                    }
+                  ],
+                  "Default": "state.process.Type.ManualDecisionRequired"
+                },
+
+                "state.process.Type.ManualDecisionRequired": 
+                {
+                      "Type": "Task",
+                      "Resource": "${manualInspectionArn}",
+                      "TimeoutSeconds": 360,
+                      "Next": "state.decision.NumberPlateParseSelector",
+                      "OutputPath": "$",
+                      "ResultPath": "$"
+                },
+
+                "state.process.Type.NumberPlateDetected": {
+                  "Type": "Task",
+                  "Comment": "Process Number Plate",
+                  "Resource": "${lambdaArnPlateDetected}",
+                  "Next": "state.process.Complete",
+                  "Retry": [{
+                    "ErrorEquals": ["RandomProcessingError"],
+                    "IntervalSeconds": 1,
+                    "BackoffRate": 2.0,
+                    "MaxAttempts": 2
+                  }],
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["DatabaseAccessError"],
+                      "ResultPath": "$.Exception",
+                      "Next": "state.error.GeneralException"
+                    },
+                    {
+                      "ErrorEquals": ["GenericError"],
+                      "ResultPath": "$.Exception",
+                      "Next": "state.error.GeneralException"
+                    },
+                    {
+                      "ErrorEquals": ["InsufficientCreditError"],
+                      "ResultPath": "$.Exception",
+                      "Next": "state.error.InsufficientCreditError"
+                    },
+                    {
+                      "ErrorEquals": ["UnknownNumberPlateError"],
+                      "ResultPath": "$.Exception",
+                      "Next": "state.error.UnknownNumberPlateError"
+                    },
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "ResultPath": "$.Exception",
+                      "Next": "state.error.GeneralException"
+                    }
+                  ]
+                },
+
+                "state.error.GeneralException": {
+                  "Type": "Fail",
+                  "Error": "GENERAL_EXCEPTION",
+                  "Cause": "A general error has occured. This file cannot be processed!"
+                },
+
+                "state.error.UnknownNumberPlateError": {
+                  "Type": "Task",
+                  "Resource": "${manualInspectionArn}",
+                  "TimeoutSeconds": 360,
+                  "Next": "state.decision.NumberPlateParseSelector",
+                  "OutputPath": "$",
+                  "ResultPath": "$"
+                },
+
+                "state.error.InsufficientCreditError": {
+                  "Type": "Task",
+                  "Resource": "${insufficientCreditArn}",
+                  "TimeoutSeconds": 360,
+                  "Next": "state.decision.NumberPlateParseSelector",
+                  "OutputPath": "$",
+                  "ResultPath": "$.TopUpResult"
+                },
+
+                "state.process.Complete": {
+                  "Type": "Pass",
+                  "End": true
+                }
+
+              }
+            }            
+          - lambdaArnPlateDetected:
+              'Fn::GetAtt':
+                - PlateDetected
+                - Arn
+            manualInspectionArn:
+              Ref: TollGantryAdminAction
+            insufficientCreditArn:
+              Ref: TollGantryInsufficientCredit

@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform:
+- AWS::Serverless-2016-10-31
+
+Description: >-
+  Creates a state machine that manages processing of Vehicle Number Plate
+  images.
+Parameters:
+
+  DDBTableNameSSMParam:
+    Type: 'AWS::SSM::Parameter::Value<String>'  
+    Description: The Step Function state machine ARN
+
+  EnvironmentName:
+    Default: Staging
+    AllowedValues: 
+      - Staging
+      - Prod
+    Description: >-
+      The name of the environment - either Staging or Prod
+    Type: String
+
+Resources:
+  
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: 'logs:*'
+                Effect: Allow
+                Resource: 'arn:aws:logs:*:*:*'
+              - Action:
+                  - 'xray:PutTelemetryRecords'
+                  - 'xray:PutTraceSegments'
+                Effect: Allow
+                Resource: '*'
+              - Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:DescribeTable'
+                Effect: Allow
+                Resource: 
+                  !Join
+                    - ''
+                    - - 'arn:aws:dynamodb:'
+                      - Ref: 'AWS::Region'
+                      - ':'
+                      - Ref: 'AWS::AccountId'
+                      - ':table/'
+                      - Ref: DDBTableNameSSMParam
+            Version: '2012-10-17'
+          PolicyName: ProcessLambdaAccess
+
+  NOOP:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub {{cookiecutter.project_name}}-NOOP-${EnvironmentName}
+      CodeUri: ./NOOP/
+      Handler: NOOP::PlateDetected.Function::FunctionHandler
+      Runtime: dotnetcore3.1
+      Description: 'This is a placeholder Lambda function. It simply logs the event to CloudWatch Logs and returns successfully'
+      MemorySize: 512
+      Timeout: 3
+      Role:
+        'Fn::GetAtt':
+          - LambdaExecutionRole
+          - Arn
+  
+  PlateDetected:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub {{cookiecutter.project_name}}-PlateDetected-${EnvironmentName}
+      CodeUri: ./PlateDetected/
+      Handler: PlateDetected::PlateDetected.Function::FunctionHandler
+      Runtime: dotnetcore3.1
+      Description: ''
+      MemorySize: 512
+      Timeout: 15
+      Role:
+        'Fn::GetAtt':
+          - LambdaExecutionRole
+          - Arn
+      Environment:
+        Variables:
+          EnvironmentName:
+            Ref: EnvironmentName
+          DDBTableName:
+            Ref: DDBTableNameSSMParam
+          RandomProcessingErrorProbability: '0.1'
+  
+  TollGantryStateMachineExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'Fn::Sub': 'states.${AWS::Region}.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource: '*'
+
+  TollGantryStateMachine:
+    Type: 'AWS::StepFunctions::StateMachine'
+    Properties:
+      StateMachineName: !Sub {{cookiecutter.stepfunction_name}}-${EnvironmentName}
+      DefinitionString:
+        'Fn::Sub':
+          - |-
+            {
+              "Comment": "Placeholder Step Function definition - initial testing only",
+              "StartAt": "state.process.NOOP",
+              "States": {
+                "state.process.NOOP": {
+                  "Type": "Task",
+                  "Comment": "Process Number Plate",
+                  "Resource": "${lambdaNOOP}",
+                  "ResultPath": "$",
+                  "OutputPath": "$",
+                  "Next": "state.process.AdminActionTest"
+                },
+                "state.process.AdminActionTest": {
+                  "Type": "Task",
+                  "Comment": "Process Number Plate",
+                  "ResultPath": "$",
+                  "OutputPath": "$",
+                  "Resource": "${manualInspectionArn}",
+                  "Next": "state.process.InsufficientCreditTest"
+                },
+                "state.process.InsufficientCreditTest": {
+                  "Type": "Task",
+                  "Comment": "Insufficient credit handler",
+                  "Resource": "${insufficientCreditArn}",
+                  "Next": "state.process.Complete"
+                },
+                "state.process.Complete": {
+                  "Type": "Pass",
+                  "End": true
+                }
+              }
+            }                                                    
+          - lambdaNOOP:
+              'Fn::GetAtt':
+                - NOOP
+                - Arn
+            lambdaArnPlateDetected:
+              'Fn::GetAtt':
+                - PlateDetected
+                - Arn
+            manualInspectionArn:
+              Ref: TollGantryAdminAction
+            insufficientCreditArn:
+              Ref: TollGantryInsufficientCredit
+      RoleArn:
+        'Fn::GetAtt':
+          - TollGantryStateMachineExecutionRole
+          - Arn
+
+  TollGantryAdminAction:
+    Type: 'AWS::StepFunctions::Activity'
+    Properties:
+      Name: !Sub {{cookiecutter.project_name}}-AdminAction-${EnvironmentName}
+  TollGantryInsufficientCredit:
+    Type: 'AWS::StepFunctions::Activity'
+    Properties:
+      Name: !Sub {{cookiecutter.project_name}}-InsufficientCredit-${EnvironmentName}
+      
+  paramStateMachineARN:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/StateMachineARN
+      Type: String
+      Value:
+        Ref: TollGantryStateMachine
+        
+  paramTollGantryAdminAction:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/AdminAction
+      Type: String
+      Value:
+        Ref: TollGantryAdminAction
+
+  paramTollGantryInsufficientCredit:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${EnvironmentName}/{{cookiecutter.project_name}}/InsufficientCredit
+      Type: String
+      Value:
+        Ref: TollGantryInsufficientCredit
+        

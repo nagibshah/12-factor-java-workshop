@@ -1,0 +1,40 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+@if (!String.IsNullOrEmpty(Model.numberPlate.numberPlate))
+{
+    <h2>Road Toll Account Top Up</h2>
+
+    <p>Hello @Model.numberPlate.ownerName!</p>
+    <p>Your current account balance is <b>$@Model.numberPlate.credit</b></p>
+    <form method="post">        
+        <div>
+            <input asp-for="numberPlate.accountToppedUpCredit" value="@(Model.numberPlate.accountToppedUpCredit == 0 ? 50 : Model.numberPlate.accountToppedUpCredit)" /><button style="margin-left:20px" type="submit">Top up my account</button>
+        </div>
+    </form>
+
+    @if (Model.numberPlate.accountToppedUp)
+    {
+        <br />
+        <div class="alert alert-success" role="alert">
+            <a href="#" class="alert-link">Your account was topped up by $@Model.numberPlate.accountToppedUpCredit!</a>
+        </div>
+    }
+
+    @if (Model.numberPlate.errorOccurred)
+    {
+        <br />
+        <div class="alert alert-danger" role="alert">
+            <a href="#" class="alert-link"><b>Oh No!</b>  Looks like an error has occurred!</a>
+        </div>
+    }
+}
+else
+{
+    <h2>Need some help?</h2>
+
+    <p>Please click the link in the email you received in order to top-up your account.</p>
+}
