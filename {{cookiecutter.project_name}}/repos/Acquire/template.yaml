@@ -45,8 +45,8 @@ Resources:
             Events:
               - 's3:ObjectCreated:Put'
           Type: S3
-      CodeUri: ./target/uploadtrigger.jar
-      Handler: com.twelvefactor.uploadtrigger.App::handleRequest
+      CodeUri: ./uploadtrigger/target/uploadtrigger.jar # ./NOOP/target/NOOP.jar
+      Handler: com.twelvefactor.uploadtrigger.App::handleRequest # com.twelvefactor.NOOP.App::handleRequest
       MemorySize: 512
       Runtime: java11
       Timeout: 60

@@ -11,8 +11,8 @@ import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.entities.Subsegment;
 import jdk.internal.joptsimple.internal.Strings;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.S3Event;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.rekognition.model.*;
@@ -90,6 +90,7 @@ public class App implements RequestHandler<S3Event, String> {
             logger.info("regExNumberPlate is " + regExNumberPlate);
         }
 
+        // prepare data to be passed to the state machine
         NumberPlateTrigger result = new NumberPlateTrigger(srcBucket, srcKey, "", objectSize, tollCharge);
         result.numberPlate = result.new NumberPlate(regExNumberPlate, false);
 
