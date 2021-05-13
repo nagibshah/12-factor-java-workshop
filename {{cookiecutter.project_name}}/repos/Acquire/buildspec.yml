@@ -8,29 +8,27 @@ phases:
       - pip3 install --upgrade awscli
       - pip3 install --upgrade aws-sam-cli
       - sam --version
-      - dotnet tool update -g Amazon.Lambda.Tools
 
   pre_build:
     commands:
       - cd NOOP
-      - dotnet clean
-      - dotnet restore
-      - cd ../UploadTrigger/
-      - dotnet clean
-      - dotnet restore
+      - mvn clean install
+      - echo UploadTrigger NOOP\:\ Build completed on `date`
+      - cd ../uploadtrigger/
+      - mvn clean install
+      - echo UploadTrigger \:\ Build completed on `date`
 
   build:
     commands:
       - cd ..
       - sam build
+      - echo UploadTrigger\:\ SAM build completed on `date`
 
   post_build:
     commands:
       - sam package --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file template-export.yml
+      - echo UploadTrigger\:\ SAM packaging completed on `date`
 
-cache:
-  paths:
-    - '/root/.nuget/packages/**/*'
 artifacts:
   type: zip
   files:

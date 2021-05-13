@@ -14,7 +14,7 @@ import software.amazon.awssdk.services.ses.SesClient;
  * The module containing all dependencies required by the {@link App}.
  */
 public class DependencyFactory {
-
+    private static final String currentRegion = "{{cookiecutter.AWS_region}}"; //{{cookiecutter.AWS_region}}
     private DependencyFactory() {}
 
     /**
@@ -23,24 +23,24 @@ public class DependencyFactory {
     public static S3Presigner s3Presigner() {
         return S3Presigner.builder()
                 .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
-                .region(Region.AP_SOUTHEAST_2)
+                .region(Region.of(currentRegion))
                 .build();
     }
 
     public  static DynamoDbClient dynamoDbClient() {
         return DynamoDbClient.builder()
                 .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
-                .region(Region.AP_SOUTHEAST_2)
+                .region(Region.of(currentRegion))
                 .build();
     }
     public static SfnClient sfnClient() {
         return SfnClient.builder()
-                .region(Region.AP_SOUTHEAST_2)
+                .region(Region.of(currentRegion))
                 .build();
     }
     public static SesClient sesClient() {
         return SesClient.builder()
-                .region(Region.AP_SOUTHEAST_2)
+                .region(Region.of(currentRegion))
                 .build();
     }
 }

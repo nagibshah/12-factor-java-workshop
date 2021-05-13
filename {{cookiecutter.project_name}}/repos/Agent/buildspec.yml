@@ -3,31 +3,29 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      dotnet: 3.1
+      java: corretto11
     commands:
       - pip3 install --upgrade awscli
       - pip3 install --upgrade aws-sam-cli
       - sam --version
-      - dotnet tool update -g Amazon.Lambda.Tools
 
   pre_build:
     commands:
-      - cd ActivityPoller
-      - dotnet clean
-      - dotnet restore
+      - cd activitypoller
+      - mvn clean install
+      - echo ActivityPoller\:\ Build completed on `date`
 
   build:
     commands:
       - cd ..
       - sam build
+      - echo ActivityPoller\:\ SAM build completed on `date`
   
   post_build:
     commands:
       - sam package --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file template-export.yml
+      - echo ActivityPoller\:\ SAM packaging completed on `date`
 
-cache:
-  paths:
-    - '/root/.nuget/packages/**/*'
 artifacts:
   type: zip
   files:
