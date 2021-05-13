@@ -11,23 +11,20 @@ phases:
 
   pre_build:
     commands:
-      - cd NOOP
+      - cd activitypoller
       - mvn clean install
-      - echo UploadTrigger NOOP\:\ Build completed on `date`
-      - cd ../uploadtrigger/
-      - mvn clean install
-      - echo UploadTrigger \:\ Build completed on `date`
+      - echo ActivityPoller\:\ Build completed on `date`
 
   build:
     commands:
       - cd ..
       - sam build
-      - echo UploadTrigger\:\ SAM build completed on `date`
-
+      - echo ActivityPoller\:\ SAM build completed on `date`
+  
   post_build:
     commands:
       - sam package --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file template-export.yml
-      - echo UploadTrigger\:\ SAM packaging completed on `date`
+      - echo ActivityPoller\:\ SAM packaging completed on `date`
 
 artifacts:
   type: zip

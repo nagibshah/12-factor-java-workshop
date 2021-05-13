@@ -14,3 +14,4 @@ echo "export DOTNET_ROOT=$HOME/.dotnet" >> ~/.bashrc
 . ~/.bashrc
 dotnet tool install -g Amazon.Lambda.Tools
 rm dotnet-install.sh
+sudo yum install java-11-amazon-corretto
