@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Creates a state machine that manages processing of Vehicle Number Plate
+  images.
+
+Parameters:
+  EnvironmentName:
+    Default: Staging
+    AllowedValues:
+      - Staging
+      - Prod
+    Description: >-
+      The name of the environment - either Staging or Prod
+    Type: String
+
+  TollgateChargeSSMParam:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Description: The charge for a vehicle to use the toll gate
+
+  NumberPlateProcessorStateMachineSSMParam:
+    Type: 'AWS::SSM::Parameter::Value<String>'
+    Description: The Step Function state machine ARN
+
+Conditions:
+  isProd: !Equals [ !Ref EnvironmentName, "Prod" ]
+
+Resources:
+  # See https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+  # for more info to see how to tune the lambda function configs based on your use case.
+  UploadTrigger:
+    Type: AWS::Serverless::Function
+    FunctionName: !Sub {{cookiecutter.project_name}}-UploadTrigger-${EnvironmentName}
+    Properties:
+      Role:
+        'Fn::GetAtt':
+          - LambdaExecutionRole
+          - Arn
+      Description: Triggers number plate scanning when a file is uploaded
+      Events:
+        ImageUpload:
+          Properties:
+            Bucket:
+              Ref: UploadS3Bucket
+            Events:
+              - 's3:ObjectCreated:Put'
+          Type: S3
+      CodeUri: ./uploadtrigger # ./NOOP/target/NOOP.jar
+      Handler: com.twelvefactor.uploadtrigger.App::handleRequest # com.twelvefactor.NOOP.App::handleRequest
+      MemorySize: 512
+      Runtime: java11
+      Timeout: 60
+      Tracing: Active
+      Environment:
+        Variables:
+          EnvironmentName:
+            Ref: EnvironmentName
+          TollgateCharge:
+            Ref: TollgateChargeSSMParam
+          RekognitionTextMinConfidence: '90'
+          NumberPlateProcessStateMachine:
+            Ref: NumberPlateProcessorStateMachineSSMParam
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Action: 'sts:AssumeRole'
+              Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+          Version: '2012-10-17'
+        Path: /
+        Policies:
+          - PolicyDocument:
+              Statement:
+                - Action: 'logs:*'
+                  Effect: Allow
+                  Resource: 'arn:aws:logs:*:*:*'
+                - Action:
+                    - 'states:StartExecution'
+                  Effect: Allow
+                  Resource:
+                    - Ref: NumberPlateProcessorStateMachineSSMParam
+                - Action:
+                    - 'xray:PutTelemetryRecords'
+                    - 'xray:PutTraceSegments'
+                  Effect: Allow
+                  Resource: '*'
+                - Action:
+                    - 's3:GetObject'
+                  Effect: Allow
+                  Resource:
+                    !Join
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Join
+                        - ''
+                        - - !Sub {{cookiecutter.imageupload_bucket_name}}
+                          - !If
+                            - isProd
+                            - -prod/*
+                            - -staging/*
+                - Action:
+                    - 'rekognition:DetectText'
+                  Effect: Allow
+                  Resource: '*'
+                - Action:
+                    - 'secretsmanager:GetSecretValue'
+                  Effect: Allow
+                  Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*/{{cookiecutter.project_name}}/Metadata-*
+              Version: '2012-10-17'
+            PolicyName: AcquireAccessPolicy
+
+  UploadS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join [ "", [ !Sub "{{cookiecutter.imageupload_bucket_name}}", !If [isProd, "-prod", "-staging"] ] ]

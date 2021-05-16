@@ -65,9 +65,9 @@ Resources:
     Type: 'AWS::Serverless::Function'
     Properties:
       FunctionName: !Sub {{cookiecutter.project_name}}-NOOP-${EnvironmentName}
-      CodeUri: ./NOOP/
-      Handler: NOOP::PlateDetected.Function::FunctionHandler
-      Runtime: dotnetcore3.1
+      CodeUri: ./NOOP
+      Handler: com.twelvefactor.NOOP.App::handleRequest
+      Runtime: java11
       Description: 'This is a placeholder Lambda function. It simply logs the event to CloudWatch Logs and returns successfully'
       MemorySize: 512
       Timeout: 3
@@ -75,17 +75,17 @@ Resources:
         'Fn::GetAtt':
           - LambdaExecutionRole
           - Arn
-  
+
   PlateDetected:
-    Type: 'AWS::Serverless::Function'
+    Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub {{cookiecutter.project_name}}-PlateDetected-${EnvironmentName}
-      CodeUri: ./PlateDetected/
-      Handler: PlateDetected::PlateDetected.Function::FunctionHandler
-      Runtime: dotnetcore3.1
+      CodeUri: ./platedetected
+      Handler: com.twelvefactor.platedetected.App::handleRequest
+      Runtime: java11
       Description: ''
       MemorySize: 512
-      Timeout: 15
+      Timeout: 60
       Role:
         'Fn::GetAtt':
           - LambdaExecutionRole

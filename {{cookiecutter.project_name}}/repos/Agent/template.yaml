@@ -116,7 +116,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub {{cookiecutter.project_name}}-ActivityPoller-${EnvironmentName}
-      CodeUri: ./activitypoller/target/activitypoller.jar
+      CodeUri: ./activitypoller
       Handler: com.twelvefactor.activitypoller.App::handleRequest
       Runtime: java11
       Description: Polls activities in the manual intervention state and processes them

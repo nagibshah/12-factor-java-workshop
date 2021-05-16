@@ -1,0 +1,3 @@
+/Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/App.java
+/Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/DependencyFactory.java
+/Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/NumberPlateTrigger.java
