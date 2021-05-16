@@ -14,7 +14,7 @@ phases:
       - cd NOOP
       - mvn clean install
       - echo PlateDetected NOOP\:\ Build completed on `date`
-      - cd ../PlateDetected/
+      - cd ../platedetected/
       - mvn clean install
       - echo PlateDetected \:\ Build completed on `date`
 

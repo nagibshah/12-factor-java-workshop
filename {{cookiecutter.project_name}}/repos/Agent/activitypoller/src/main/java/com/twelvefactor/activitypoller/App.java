@@ -5,7 +5,6 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import jdk.internal.joptsimple.internal.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.HttpStatusCode;
@@ -23,6 +22,7 @@ import software.amazon.awssdk.services.ses.model.*;
 import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.GetActivityTaskRequest;
 import software.amazon.awssdk.services.sfn.model.GetActivityTaskResponse;
+import software.amazon.awssdk.utils.StringUtils;
 
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
@@ -88,7 +88,7 @@ public class App implements RequestHandler<Object, Object> {
                         .activityArn(insufficientCreditActivityARN)
                         .build());
 
-                if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !Strings.isNullOrEmpty(response.taskToken())) {
+                if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
                     // task is found
                     logger.info(String.format("InsufficientCreditHandler: Found a task. Input is: %s", response.input()));
                     Type type = new TypeToken<NumberPlateTrigger>() {
@@ -167,7 +167,7 @@ public class App implements RequestHandler<Object, Object> {
                 GetActivityTaskResponse response = sfnClient.getActivityTask(GetActivityTaskRequest.builder()
                         .activityArn(unknownNumberActivityARN)
                         .build());
-                if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !Strings.isNullOrEmpty(response.taskToken())) {
+                if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
                     logger.info(String.format("ManualAdminTaskHandler: Found a task. Input is: %s",response.input()));
                     Type type = new TypeToken<NumberPlateTrigger>(){}.getType();
                     NumberPlateTrigger input = gson.fromJson(response.input(),type);

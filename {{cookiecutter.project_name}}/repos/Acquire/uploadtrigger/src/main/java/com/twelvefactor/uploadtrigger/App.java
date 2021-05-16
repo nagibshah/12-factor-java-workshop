@@ -9,7 +9,6 @@ import java.util.regex.Pattern;
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification;
 import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.entities.Subsegment;
-import jdk.internal.joptsimple.internal.Strings;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.S3Event;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -31,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sfn.model.SfnException;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse;
+import software.amazon.awssdk.utils.StringUtils;
 
 /**
  * Lambda function entry point. You can change to use other pojo type or implement
@@ -132,7 +132,7 @@ public class App implements RequestHandler<S3Event, String> {
                     plateNumber.append(m.group());
                     //allMatches.add(m.group());
                 }
-                if (!Strings.isNullOrEmpty(plateNumber.toString())) {
+                if (!StringUtils.isEmpty(plateNumber.toString())) {
                     result.numberPlate.detected = true;
                     result.numberPlate.confidence = textItem.confidence();
                     result.numberPlate.numberPlateString = plateNumber.toString();
@@ -195,7 +195,7 @@ public class App implements RequestHandler<S3Event, String> {
             else {
                 SdkBytes secretBlob = valueResponse.secretBinary();
                 String decodedBinarySecret = StandardCharsets.UTF_8.decode(Base64.getDecoder().decode(secretBlob.asByteBuffer())).toString();
-
+                //new String(Base64.getDecoder().decode(valueResponse.secretBinary().asByteBuffer()).array());
                 Type type = new TypeToken<HashMap<String, String>>(){}.getType();
                 HashMap<String, String> deserialized = gson.fromJson(decodedBinarySecret,type);
                 regex = deserialized.get("NumberPlateRegEx");
