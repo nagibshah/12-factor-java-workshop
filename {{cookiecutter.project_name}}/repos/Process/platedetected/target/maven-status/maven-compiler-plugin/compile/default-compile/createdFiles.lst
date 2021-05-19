@@ -2,6 +2,6 @@ com/twelvefactor/platedetected/NumberPlateTrigger.class
 com/twelvefactor/platedetected/DependencyFactory.class
 com/twelvefactor/platedetected/App$UnknownNumberPlateError.class
 com/twelvefactor/platedetected/App$RandomProcessingError.class
+com/twelvefactor/platedetected/NumberPlate.class
 com/twelvefactor/platedetected/App$InsufficientCreditError.class
 com/twelvefactor/platedetected/App.class
-com/twelvefactor/platedetected/NumberPlateTrigger$NumberPlate.class

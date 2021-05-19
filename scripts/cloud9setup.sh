@@ -17,3 +17,5 @@ rm dotnet-install.sh
 sudo yum install java-11-amazon-corretto
 sudo alternatives --set java /usr/lib/jvm/java-11-amazon-corretto.x86_64/bin/java
 sudo yum install maven -y
+export JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto.x86_64
+export PATH=$PATH:$JAVA_HOME/bin

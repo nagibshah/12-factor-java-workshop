@@ -26,6 +26,9 @@ phases:
       - sam package --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file template-export.yml
       - echo ActivityPoller\:\ SAM packaging completed on `date`
 
+cache:
+  paths:
+    - '/root/.m2/**/*'
 artifacts:
   type: zip
   files:
