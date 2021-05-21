@@ -41,6 +41,10 @@ Resources:
       Policies:
       - AWSLambda_FullAccess
       - AWSStepFunctionsFullAccess
+      - AWSLambdaDynamoDBExecutionRole
+      - AWSLambdaRole
+      - AmazonDynamoDBFullAccess
+      - AWSLambdaInvocation-DynamoDB
       Environment:
         Variables:
           EnvironmentName:

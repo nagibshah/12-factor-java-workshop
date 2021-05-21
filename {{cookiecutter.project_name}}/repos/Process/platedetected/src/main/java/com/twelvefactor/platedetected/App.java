@@ -107,7 +107,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             Map<String,AttributeValue> returnedItem = ddb.getItem(request).item();
 
             if (returnedItem != null) {
-                credit = Float.parseFloat(returnedItem.get("credit").toString());
+                credit = Float.parseFloat(returnedItem.get("credit").n());
                 logger.info(String.format("Available credit for plate:%s is %.2f",keyVal,credit));
             }
             else {

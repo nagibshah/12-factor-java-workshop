@@ -128,10 +128,10 @@ public class App implements RequestHandler<Object, Object> {
                     //
                     Map<String, AttributeValue> document = GetRecord(input.numberPlate.numberPlateString);
                     // generate and send email
-                    String mailTo = document.get("ownerEmail").toString();
+                    String mailTo = document.get("ownerEmail").s();
                     String subject = "[ACTION] - Your account credit is exhausted";
-                    String firstname = document.get("ownerFirstName").toString();
-                    String lastname = document.get("ownerLastName").toString();
+                    String firstname = document.get("ownerFirstName").s();
+                    String lastname = document.get("ownerLastName").s();
                     String taskToken = URLEncoder.encode(response.taskToken(), StandardCharsets.UTF_8.toString());
 
                     Content textContent = Content.builder()
@@ -144,7 +144,7 @@ public class App implements RequestHandler<Object, Object> {
                                     lastname,
                                     input.numberPlate.numberPlateString,
                                     System.getenv("APIGWEndpoint"),
-                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString())
+                                    taskToken
                             ))
                             .build();
                     Content htmlContent = Content.builder()
@@ -152,14 +152,14 @@ public class App implements RequestHandler<Object, Object> {
                             .data(String.format("Hello %1$s %2$s,<br/><br/>Your vehicle with number plate <b>%3$s</b> was recently detected on a toll road, but your account has insufficient credit to pay the toll.<br/><br/>" +
                                             "<img src='%4$s'/><br/><a href='%4$s'>Click here to see the original image</a><br/><br/>" +
                                             "Please update your account balance immediately to avoid a fine. <br/>" +
-                                            "<a href='%5$stopup/%3$s?taskToken=%6$s><b>Click this link to top up your account now.</b></a><br/>" +
+                                            "<a href='%5$stopup/%3$s?taskToken=%6$s'><b>Click this link to top up your account now.</b></a><br/>" +
                                             "<br/><br/> Thanks<br/><b>Toll Road Administrator.</b><br/><br/>",
                                     firstname,
                                     lastname,
                                     input.numberPlate.numberPlateString,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
-                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString())
+                                    taskToken
                             ))
                             .build();
                     result = sendMail(subject, mailTo, textContent, htmlContent);
@@ -221,7 +221,7 @@ public class App implements RequestHandler<Object, Object> {
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString()),
+                                    taskToken,
                                     URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
@@ -238,7 +238,7 @@ public class App implements RequestHandler<Object, Object> {
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString()),
+                                    taskToken,
                                     URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
@@ -319,9 +319,10 @@ public class App implements RequestHandler<Object, Object> {
                 .key(keyToGet)
                 .tableName(System.getenv("DDBTableName"))
                 .build();
-
+        logger.info(String.format("Querying ddb for plate: %s",numberPlate));
         try {
             returnedItem = dynamoDbClient.getItem(request).item();
+            logger.info(String.format("ddb response: %s", returnedItem.toString()));
             if (returnedItem == null) {
                 String msg = String.format("Number plate %s was not found. This will require manual resolution",numberPlate);
                 logger.error(msg);
