@@ -29,10 +29,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -41,6 +40,7 @@ import java.util.concurrent.Future;
  *
  * @see <a href=https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html>Lambda Java Handler</a> for more information
  */
+
 public class App implements RequestHandler<Object, Object> {
     private final S3Presigner s3Presigner;
     private final SesClient sesClient;
@@ -61,31 +61,49 @@ public class App implements RequestHandler<Object, Object> {
 
     @Override
     public Object handleRequest(final Object input, final Context context) {
+        //ExecutorService taskExecutor = Executors.newFixedThreadPool(2);
         ExecutorService taskExecutor = Executors.newFixedThreadPool(2);
         List<Callable<String>> callableTasks = new ArrayList<>();
-        callableTasks.add(new InsufficientCreditHandler(System.getenv("StepFunctionActivityInsufficientCredit")));
-        callableTasks.add(new UnknownNumberPlateHandler(System.getenv("StepFunctionActivityManualPlateInspection")));
+        callableTasks.add(new InsufficientCreditHandler(System.getenv("StepFunctionActivityInsufficientCredit"), context));
+        callableTasks.add(new UnknownNumberPlateHandler(System.getenv("StepFunctionActivityManualPlateInspection"), context));
+        List<Future<String>> results;
+
         try {
-            List<Future<String>> results = taskExecutor.invokeAll(callableTasks);
-            logger.info(String.format("Job 1 status: %s and Job 2 status: %s",results.get(1).toString(),results.get(2).toString()));
-        } catch (InterruptedException e) {
+            logger.info("Starting tasks..");
+            results = taskExecutor.invokeAll(callableTasks);
+            logger.info(String.format("Job 1 status: %s and Job 2 status: %s",results.get(1).get(), results.get(2).get()));
+            //logger.info("Tasks Completed successfully.")
+        } catch (InterruptedException | ExecutionException e) {
             logger.error("Error executing tasks with message: " + e.getMessage());
         }
+        taskExecutor.shutdown();
         return input;
     }
 
-    private class InsufficientCreditHandler implements Callable<String> {
+    public class InsufficientCreditHandler implements Callable<String> {
         private final String insufficientCreditActivityARN;
+        private final Context context;
+        private final S3Presigner s3Presigner;
+        private final SesClient sesClient;
+        private final SfnClient sfnClient;
+        private final DynamoDbClient dynamoDbClient;
 
-        InsufficientCreditHandler(String insufficientCreditActivityARN) {
+        InsufficientCreditHandler(String insufficientCreditActivityARN, final Context context) {
             this.insufficientCreditActivityARN = insufficientCreditActivityARN;
+            this.context = context;
+            s3Presigner = DependencyFactory.s3Presigner();
+            sesClient = DependencyFactory.sesClient();
+            sfnClient = DependencyFactory.sfnClient();
+            dynamoDbClient = DependencyFactory.dynamoDbClient();
         }
 
         public String call() {
             String result = null;
             try {
+                logger.info("Getting activity task " + this.insufficientCreditActivityARN);
                 GetActivityTaskResponse response = sfnClient.getActivityTask(GetActivityTaskRequest.builder()
-                        .activityArn(insufficientCreditActivityARN)
+                        .activityArn(this.insufficientCreditActivityARN)
+                        .workerName("insufficient-credit-worker")
                         .build());
 
                 if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
@@ -154,18 +172,30 @@ public class App implements RequestHandler<Object, Object> {
         }
     }
 
-    private class UnknownNumberPlateHandler implements Callable<String> {
+    public class UnknownNumberPlateHandler implements Callable<String> {
         private final String unknownNumberActivityARN;
+        private final Context context;
+        private final S3Presigner s3Presigner;
+        private final SesClient sesClient;
+        private final SfnClient sfnClient;
+        private final DynamoDbClient dynamoDbClient;
 
-        UnknownNumberPlateHandler(String unknownNumberActivityARN) {
+        UnknownNumberPlateHandler(String unknownNumberActivityARN, final Context context) {
             this.unknownNumberActivityARN = unknownNumberActivityARN;
+            this.context = context;
+            s3Presigner = DependencyFactory.s3Presigner();
+            sesClient = DependencyFactory.sesClient();
+            sfnClient = DependencyFactory.sfnClient();
+            dynamoDbClient = DependencyFactory.dynamoDbClient();
         }
 
         public String call() {
             String result = "";
             try {
+                logger.info("Getting activity task " + this.unknownNumberActivityARN);
                 GetActivityTaskResponse response = sfnClient.getActivityTask(GetActivityTaskRequest.builder()
-                        .activityArn(unknownNumberActivityARN)
+                        .activityArn(this.unknownNumberActivityARN)
+                        .workerName("unknown-number-plate-worker")
                         .build());
                 if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
                     logger.info(String.format("ManualAdminTaskHandler: Found a task. Input is: %s",response.input()));
@@ -221,7 +251,7 @@ public class App implements RequestHandler<Object, Object> {
         }
     }
 
-    private String sendMail(String subject, String emailTo, Content text, Content html) {
+    public String sendMail(String subject, String emailTo, Content text, Content html) {
         String result;
         Message emailMsg = Message.builder()
                 .subject(Content.builder().data(subject).build())
@@ -254,6 +284,7 @@ public class App implements RequestHandler<Object, Object> {
     private String GetPreSignedUrl(NumberPlateTrigger input) {
         String imageLink = "";
         try {
+            logger.info(String.format("Generating presigned url for bucket:%s object:%s", input.bucket, input.key));
             GetObjectRequest getObjectRequest =
                     GetObjectRequest.builder()
                             .bucket(input.bucket)
@@ -261,13 +292,14 @@ public class App implements RequestHandler<Object, Object> {
                             .build();
             GetObjectPresignRequest getObjectPresignRequest =
                     GetObjectPresignRequest.builder()
-                            .signatureDuration(Duration.ofMinutes(10)) // valid for 10 mins
+                            .signatureDuration(Duration.ofDays(1)) // valid for 1 day
                             .getObjectRequest(getObjectRequest)
                             .build();
             // Generate the pre-signed request
             PresignedGetObjectRequest presignedGetObjectRequest =
                     s3Presigner.presignGetObject(getObjectPresignRequest);
             imageLink = presignedGetObjectRequest.url().toString();
+            logger.info("s3 presigned url: " + presignedGetObjectRequest.url());
         } catch (S3Exception e) {
             logger.error(String.format("Error generating object url from s3 with message %s",e.getMessage()));
             System.exit(1);

@@ -1,3 +1,4 @@
 /Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Agent/activitypoller/src/main/java/com/twelvefactor/activitypoller/NumberPlateTrigger.java
 /Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Agent/activitypoller/src/main/java/com/twelvefactor/activitypoller/DependencyFactory.java
+/Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Agent/activitypoller/src/main/java/com/twelvefactor/activitypoller/NumberPlate.java
 /Users/nagishah/dev/12-factor-java-workshop/{{cookiecutter.project_name}}/repos/Agent/activitypoller/src/main/java/com/twelvefactor/activitypoller/App.java

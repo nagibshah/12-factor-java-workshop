@@ -8,26 +8,51 @@ public class NumberPlateTrigger {
     public NumberPlate numberPlate;
     public int charge;
 
-    public NumberPlateTrigger(String bucket, String key, String contentType, Long contentLength, int charge) {
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setBucket(String bucket) {
         this.bucket = bucket;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
         this.key = key;
-        this.contentLength = contentLength;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
         this.contentType = contentType;
+    }
+
+    public Long getContentLength() {
+        return contentLength;
+    }
+
+    public void setContentLength(Long contentLength) {
+        this.contentLength = contentLength;
+    }
+
+    public NumberPlate getNumberPlate() {
+        return numberPlate;
+    }
+
+    public void setNumberPlate(NumberPlate numberPlate) {
+        this.numberPlate = numberPlate;
+    }
+
+    public int getCharge() {
+        return charge;
+    }
+
+    public void setCharge(int charge) {
         this.charge = charge;
     }
-
-    class NumberPlate {
-        public boolean detected;
-        public String numberPlateString;
-        public float confidence;
-        public String numberPlateRegEx;
-
-        NumberPlate(String numberPlateRegEx, boolean detected) {
-            this.detected = detected;
-            this.numberPlateRegEx = numberPlateRegEx;
-        }
-
-    }
 }
-
-
