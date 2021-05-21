@@ -43,11 +43,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
         if (rand.nextDouble() <= Double.parseDouble(System.getenv("RandomProcessingErrorProbability"))) {
             String msg = "Congratulations! A random processing error has occurred!";
             logger.info(msg);
-            try {
-                throw new RandomProcessingError(msg);
-            } catch (RandomProcessingError randomProcessingError) {
-                randomProcessingError.printStackTrace();
-            }
+            throw new RandomProcessingError(msg);
         }
 
         Float credit = getAvailableCredit(dynamoDbClient,
@@ -63,30 +59,26 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
                     payload.numberPlate.numberPlateString,
                     credit,payload.charge);
             logger.error(msg);
-            try {
-                throw new InsufficientCreditError(msg);
-            } catch (InsufficientCreditError insufficientCreditError) {
-                insufficientCreditError.printStackTrace();
-            }
+            throw new InsufficientCreditError(msg);
         }
 
         return payload;
     }
 
 
-    public class RandomProcessingError extends Exception {
+    public class RandomProcessingError extends RuntimeException {
         public  RandomProcessingError(String message) {
             super(message);
         }
     }
 
-    public class InsufficientCreditError extends Exception {
+    public class InsufficientCreditError extends RuntimeException {
         public InsufficientCreditError(String message) {
             super(message);
         }
     }
 
-    public class UnknownNumberPlateError extends Exception {
+    public class UnknownNumberPlateError extends RuntimeException {
         public UnknownNumberPlateError(String message) {
             super(message);
         }
@@ -120,7 +112,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             }
             return credit;
 
-        } catch (DynamoDbException | UnknownNumberPlateError e) {
+        } catch (DynamoDbException e) {
             logger.info(String.format("Failed to query the dynamodb table with error: %s",e.getMessage()));
             System.exit(1);
         }
