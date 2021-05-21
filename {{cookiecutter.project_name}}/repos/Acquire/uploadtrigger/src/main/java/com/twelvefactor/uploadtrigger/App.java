@@ -1,36 +1,33 @@
 package com.twelvefactor.uploadtrigger;
 
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification;
 import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.entities.Subsegment;
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.events.S3Event;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.rekognition.RekognitionClient;
-import software.amazon.awssdk.services.rekognition.model.*;
-import software.amazon.awssdk.services.rekognition.model.S3Object;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
-import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
-import software.amazon.awssdk.services.sfn.SfnClient;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.rekognition.RekognitionClient;
+import software.amazon.awssdk.services.rekognition.model.*;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
+import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.SfnException;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse;
 import software.amazon.awssdk.utils.StringUtils;
+
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Lambda function entry point. You can change to use other pojo type or implement
@@ -38,7 +35,7 @@ import software.amazon.awssdk.utils.StringUtils;
  *
  * @see <a href=https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html>Lambda Java Handler</a> for more information
  */
-public class App implements RequestHandler<S3Event, String> {
+public class App implements RequestHandler<S3EventNotification, String> {
     private final RekognitionClient rekognitionClient;
     private final AWSXRayRecorder xrayRecorder;
     private final SfnClient sfnClient;
@@ -58,7 +55,7 @@ public class App implements RequestHandler<S3Event, String> {
     }
 
     @Override
-    public String handleRequest(S3Event event, Context ctx) {
+    public String handleRequest(S3EventNotification event, Context ctx) {
         // TODO: invoking the api call using s3Client.
 
         logger.info("EVENT Received: " + gson.toJson(event));
@@ -91,8 +88,17 @@ public class App implements RequestHandler<S3Event, String> {
         }
 
         // prepare data to be passed to the state machine
-        NumberPlateTrigger result = new NumberPlateTrigger(srcBucket, srcKey, "", objectSize, tollCharge);
-        result.numberPlate = result.new NumberPlate(regExNumberPlate, false);
+        // prepare data to be passed to the state machine
+        NumberPlateTrigger result = new NumberPlateTrigger();
+        result.setCharge(tollCharge);
+        result.setBucket(srcBucket);
+        result.setKey(srcKey);
+        result.setContentType("");
+        result.setContentLength(objectSize);
+        NumberPlate numberPlate = new NumberPlate();
+        numberPlate.setDetected(false);
+        numberPlate.setNumberPlateString(regExNumberPlate);
+        result.setNumberPlate(numberPlate);
 
         // distributed tracing segments and metadata
         Subsegment subsegment = xrayRecorder.beginSubsegment("TollGantry::Detect Number Plate in Captured Image");
@@ -112,7 +118,7 @@ public class App implements RequestHandler<S3Event, String> {
             logger.info("Calling Rekognition ...");
             DetectTextResponse response = rekognitionClient.detectText(detectTextRequest);
             textCollection = response.textDetections();
-            logger.info(String.format("Response from Rekognition: %s",gson.toJson(response)));
+            logger.info(String.format("Response from Rekognition: %s",gson.toJson(response.textDetections())));
         } catch (RekognitionException e) {
             logger.error(String.format("Error invoking Rekognition with message: %s",e.getMessage()));
             System.exit(1);
@@ -128,14 +134,13 @@ public class App implements RequestHandler<S3Event, String> {
                 StringBuilder plateNumber = new StringBuilder();
                 Matcher m = Pattern.compile(regExNumberPlate).matcher(textItem.detectedText());
                 while (m.find()) {
-                    // TODO: test to see if a full number plate is extracted
                     plateNumber.append(m.group());
                     //allMatches.add(m.group());
                 }
                 if (!StringUtils.isEmpty(plateNumber.toString())) {
                     result.numberPlate.detected = true;
                     result.numberPlate.confidence = textItem.confidence();
-                    result.numberPlate.numberPlateString = plateNumber.toString();
+                    result.numberPlate.numberPlateString = plateNumber.toString().replaceAll("\\s+",""); // remove whitespaces
                     logger.info(String.format("A valid plate number was detected %s", plateNumber));
                 }
             }

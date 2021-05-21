@@ -496,22 +496,22 @@ Note that this section requires you to manually create the AWS Step Function wor
         ```json
         "Catch": [
         {
-          "ErrorEquals": ["DatabaseAccessError"],
+          "ErrorEquals": ["com.twelvefactor.platedetected.App$DatabaseAccessError"],
           "ResultPath": "$.Exception",
           "Next": "state.error.GeneralException"
         },
         {
-          "ErrorEquals": ["GenericError"],
+          "ErrorEquals": ["com.twelvefactor.platedetected.App$GenericError"],
           "ResultPath": "$.Exception",
           "Next": "state.error.GeneralException"
         },
         {
-          "ErrorEquals": ["InsufficientCreditError"],
+          "ErrorEquals": ["com.twelvefactor.platedetected.App$InsufficientCreditError"],
           "ResultPath": "$.Exception",
           "Next": "state.error.InsufficientCreditError"
         },
         {
-          "ErrorEquals": ["UnknownNumberPlateError"],
+          "ErrorEquals": ["com.twelvefactor.platedetected.App$UnknownNumberPlateError"],
           "ResultPath": "$.Exception",
           "Next": "state.error.UnknownNumberPlateError"
         },

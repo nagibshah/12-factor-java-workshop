@@ -29,10 +29,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -41,6 +40,7 @@ import java.util.concurrent.Future;
  *
  * @see <a href=https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html>Lambda Java Handler</a> for more information
  */
+
 public class App implements RequestHandler<Object, Object> {
     private final S3Presigner s3Presigner;
     private final SesClient sesClient;
@@ -61,31 +61,49 @@ public class App implements RequestHandler<Object, Object> {
 
     @Override
     public Object handleRequest(final Object input, final Context context) {
+        //ExecutorService taskExecutor = Executors.newFixedThreadPool(2);
         ExecutorService taskExecutor = Executors.newFixedThreadPool(2);
         List<Callable<String>> callableTasks = new ArrayList<>();
-        callableTasks.add(new InsufficientCreditHandler(System.getenv("StepFunctionActivityInsufficientCredit")));
-        callableTasks.add(new UnknownNumberPlateHandler(System.getenv("StepFunctionActivityManualPlateInspection")));
+        callableTasks.add(new InsufficientCreditHandler(System.getenv("StepFunctionActivityInsufficientCredit"), context));
+        callableTasks.add(new UnknownNumberPlateHandler(System.getenv("StepFunctionActivityManualPlateInspection"), context));
+        List<Future<String>> results;
+
         try {
-            List<Future<String>> results = taskExecutor.invokeAll(callableTasks);
-            logger.info(String.format("Job 1 status: %s and Job 2 status: %s",results.get(1).toString(),results.get(2).toString()));
-        } catch (InterruptedException e) {
+            logger.info("Starting tasks..");
+            results = taskExecutor.invokeAll(callableTasks);
+            logger.info(String.format("Job 1 status: %s and Job 2 status: %s",results.get(1).get(), results.get(2).get()));
+            //logger.info("Tasks Completed successfully.")
+        } catch (InterruptedException | ExecutionException e) {
             logger.error("Error executing tasks with message: " + e.getMessage());
         }
+        taskExecutor.shutdown();
         return input;
     }
 
-    private class InsufficientCreditHandler implements Callable<String> {
+    public class InsufficientCreditHandler implements Callable<String> {
         private final String insufficientCreditActivityARN;
+        private final Context context;
+        private final S3Presigner s3Presigner;
+        private final SesClient sesClient;
+        private final SfnClient sfnClient;
+        private final DynamoDbClient dynamoDbClient;
 
-        InsufficientCreditHandler(String insufficientCreditActivityARN) {
+        InsufficientCreditHandler(String insufficientCreditActivityARN, final Context context) {
             this.insufficientCreditActivityARN = insufficientCreditActivityARN;
+            this.context = context;
+            s3Presigner = DependencyFactory.s3Presigner();
+            sesClient = DependencyFactory.sesClient();
+            sfnClient = DependencyFactory.sfnClient();
+            dynamoDbClient = DependencyFactory.dynamoDbClient();
         }
 
         public String call() {
             String result = null;
             try {
+                logger.info("Getting activity task " + this.insufficientCreditActivityARN);
                 GetActivityTaskResponse response = sfnClient.getActivityTask(GetActivityTaskRequest.builder()
-                        .activityArn(insufficientCreditActivityARN)
+                        .activityArn(this.insufficientCreditActivityARN)
+                        .workerName("insufficient-credit-worker")
                         .build());
 
                 if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
@@ -110,10 +128,10 @@ public class App implements RequestHandler<Object, Object> {
                     //
                     Map<String, AttributeValue> document = GetRecord(input.numberPlate.numberPlateString);
                     // generate and send email
-                    String mailTo = document.get("ownerEmail").toString();
+                    String mailTo = document.get("ownerEmail").s();
                     String subject = "[ACTION] - Your account credit is exhausted";
-                    String firstname = document.get("ownerFirstName").toString();
-                    String lastname = document.get("ownerLastName").toString();
+                    String firstname = document.get("ownerFirstName").s();
+                    String lastname = document.get("ownerLastName").s();
                     String taskToken = URLEncoder.encode(response.taskToken(), StandardCharsets.UTF_8.toString());
 
                     Content textContent = Content.builder()
@@ -134,7 +152,7 @@ public class App implements RequestHandler<Object, Object> {
                             .data(String.format("Hello %1$s %2$s,<br/><br/>Your vehicle with number plate <b>%3$s</b> was recently detected on a toll road, but your account has insufficient credit to pay the toll.<br/><br/>" +
                                             "<img src='%4$s'/><br/><a href='%4$s'>Click here to see the original image</a><br/><br/>" +
                                             "Please update your account balance immediately to avoid a fine. <br/>" +
-                                            "<a href='%5$stopup/%3$s?taskToken=%6$s><b>Click this link to top up your account now.</b></a><br/>" +
+                                            "<a href='%5$stopup/%3$s?taskToken=%6$s'><b>Click this link to top up your account now.</b></a><br/>" +
                                             "<br/><br/> Thanks<br/><b>Toll Road Administrator.</b><br/><br/>",
                                     firstname,
                                     lastname,
@@ -154,18 +172,30 @@ public class App implements RequestHandler<Object, Object> {
         }
     }
 
-    private class UnknownNumberPlateHandler implements Callable<String> {
+    public class UnknownNumberPlateHandler implements Callable<String> {
         private final String unknownNumberActivityARN;
+        private final Context context;
+        private final S3Presigner s3Presigner;
+        private final SesClient sesClient;
+        private final SfnClient sfnClient;
+        private final DynamoDbClient dynamoDbClient;
 
-        UnknownNumberPlateHandler(String unknownNumberActivityARN) {
+        UnknownNumberPlateHandler(String unknownNumberActivityARN, final Context context) {
             this.unknownNumberActivityARN = unknownNumberActivityARN;
+            this.context = context;
+            s3Presigner = DependencyFactory.s3Presigner();
+            sesClient = DependencyFactory.sesClient();
+            sfnClient = DependencyFactory.sfnClient();
+            dynamoDbClient = DependencyFactory.dynamoDbClient();
         }
 
         public String call() {
             String result = "";
             try {
+                logger.info("Getting activity task " + this.unknownNumberActivityARN);
                 GetActivityTaskResponse response = sfnClient.getActivityTask(GetActivityTaskRequest.builder()
-                        .activityArn(unknownNumberActivityARN)
+                        .activityArn(this.unknownNumberActivityARN)
+                        .workerName("unknown-number-plate-worker")
                         .build());
                 if (HttpStatusCode.OK == response.sdkHttpResponse().statusCode() && !StringUtils.isEmpty(response.taskToken())) {
                     logger.info(String.format("ManualAdminTaskHandler: Found a task. Input is: %s",response.input()));
@@ -184,14 +214,15 @@ public class App implements RequestHandler<Object, Object> {
                             .data(String.format("Hello %1$s, An image was captured at a toll booth, " +
                                             "but the Number Plate Processor could not be confident that it could determine the actual number plate on the vehicle. We need your help to take a look at the image," +
                                             "and make a determination." +
-                                            "Please access this link to take a decision: %3$sparse/%4$s/%5$s/5?imageLink=%2$s&taskToken=%6$s" +
+                                            "Please access this link to take a decision: %3$sparse/%4$s/%5$s/5?imageLink=%7$s&taskToken=%6$s" +
                                             " .. Thanks. Toll Road Administrator",
                                     mailTo,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    taskToken
+                                    taskToken,
+                                    URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     Content htmlContent = Content.builder()
@@ -200,14 +231,15 @@ public class App implements RequestHandler<Object, Object> {
                                             "but the Number Plate Processor could not be confident that it could determine the actual number plate on the vehicle. We need your help to take a look at the image," +
                                             "and make a determination.< br />< br />" +
                                             "<img src='%2$s'/><br/><a href='%2$s'>Click here to see the original image if it is not appearing in the email correctly.</a><br/><br/>" +
-                                            "<a href='%3$sparse/%4$s/%5$s/5?imageLink=%2$s&taskToken=%6$s'><b>Click this link to help assess the image and provide the number plate.</b></a><br/>" +
+                                            "<a href='%3$sparse/%4$s/%5$s/5?imageLink=%7$s&taskToken=%6$s'><b>Click this link to help assess the image and provide the number plate.</b></a><br/>" +
                                             "<br/><br/>Thanks<br/><b>Toll Road Administrator.</b><br/><br/>",
                                     mailTo,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    taskToken
+                                    taskToken,
+                                    URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     result = sendMail(subject,mailTo, textContent, htmlContent);
@@ -221,7 +253,7 @@ public class App implements RequestHandler<Object, Object> {
         }
     }
 
-    private String sendMail(String subject, String emailTo, Content text, Content html) {
+    public String sendMail(String subject, String emailTo, Content text, Content html) {
         String result;
         Message emailMsg = Message.builder()
                 .subject(Content.builder().data(subject).build())
@@ -254,6 +286,7 @@ public class App implements RequestHandler<Object, Object> {
     private String GetPreSignedUrl(NumberPlateTrigger input) {
         String imageLink = "";
         try {
+            logger.info(String.format("Generating presigned url for bucket:%s object:%s", input.bucket, input.key));
             GetObjectRequest getObjectRequest =
                     GetObjectRequest.builder()
                             .bucket(input.bucket)
@@ -261,13 +294,14 @@ public class App implements RequestHandler<Object, Object> {
                             .build();
             GetObjectPresignRequest getObjectPresignRequest =
                     GetObjectPresignRequest.builder()
-                            .signatureDuration(Duration.ofMinutes(10)) // valid for 10 mins
+                            .signatureDuration(Duration.ofDays(1)) // valid for 1 day
                             .getObjectRequest(getObjectRequest)
                             .build();
             // Generate the pre-signed request
             PresignedGetObjectRequest presignedGetObjectRequest =
                     s3Presigner.presignGetObject(getObjectPresignRequest);
             imageLink = presignedGetObjectRequest.url().toString();
+            logger.info("s3 presigned url: " + presignedGetObjectRequest.url());
         } catch (S3Exception e) {
             logger.error(String.format("Error generating object url from s3 with message %s",e.getMessage()));
             System.exit(1);
@@ -285,9 +319,10 @@ public class App implements RequestHandler<Object, Object> {
                 .key(keyToGet)
                 .tableName(System.getenv("DDBTableName"))
                 .build();
-
+        logger.info(String.format("Querying ddb for plate: %s",numberPlate));
         try {
             returnedItem = dynamoDbClient.getItem(request).item();
+            logger.info(String.format("ddb response: %s", returnedItem.toString()));
             if (returnedItem == null) {
                 String msg = String.format("Number plate %s was not found. This will require manual resolution",numberPlate);
                 logger.error(msg);

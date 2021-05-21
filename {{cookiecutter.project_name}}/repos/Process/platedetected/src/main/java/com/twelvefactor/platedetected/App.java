@@ -43,11 +43,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
         if (rand.nextDouble() <= Double.parseDouble(System.getenv("RandomProcessingErrorProbability"))) {
             String msg = "Congratulations! A random processing error has occurred!";
             logger.info(msg);
-            try {
-                throw new RandomProcessingError(msg);
-            } catch (RandomProcessingError randomProcessingError) {
-                randomProcessingError.printStackTrace();
-            }
+            throw new RandomProcessingError(msg);
         }
 
         Float credit = getAvailableCredit(dynamoDbClient,
@@ -56,36 +52,33 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
                 payload.numberPlate.numberPlateString);
         if (credit > payload.charge) {
             // charge the customer
+            logger.info("Charging the customer");
             chargeCustomer(payload.numberPlate.numberPlateString, credit, payload.charge);
         } else {
             String msg = String.format("Driver for number plate %s has insufficient credit %.2f for a charge of %d",
                     payload.numberPlate.numberPlateString,
                     credit,payload.charge);
             logger.error(msg);
-            try {
-                throw new InsufficientCreditError(msg);
-            } catch (InsufficientCreditError insufficientCreditError) {
-                insufficientCreditError.printStackTrace();
-            }
+            throw new InsufficientCreditError(msg);
         }
 
         return payload;
     }
 
 
-    public class RandomProcessingError extends Exception {
+    public class RandomProcessingError extends RuntimeException {
         public  RandomProcessingError(String message) {
             super(message);
         }
     }
 
-    public class InsufficientCreditError extends Exception {
+    public class InsufficientCreditError extends RuntimeException {
         public InsufficientCreditError(String message) {
             super(message);
         }
     }
 
-    public class UnknownNumberPlateError extends Exception {
+    public class UnknownNumberPlateError extends RuntimeException {
         public UnknownNumberPlateError(String message) {
             super(message);
         }
@@ -93,7 +86,8 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
 
     // get available credit from dynamodb
     public Float getAvailableCredit(DynamoDbClient ddb,String tableName, String key, String keyVal) {
-        HashMap<String, AttributeValue> keyToGet = new HashMap<String,AttributeValue>();
+        keyVal = keyVal.replaceAll("\\s+",""); // strip whitespaces
+        HashMap<String, AttributeValue> keyToGet = new HashMap<>();
         keyToGet.put(key, AttributeValue.builder()
                 .s(keyVal).build());
         GetItemRequest request = GetItemRequest.builder()
@@ -104,10 +98,11 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
 
         try {
             // get the available credit value
+            logger.info(String.format("Getting available credit for number plate %s",keyVal));
             Map<String,AttributeValue> returnedItem = ddb.getItem(request).item();
 
             if (returnedItem != null) {
-                credit = Float.parseFloat(returnedItem.get("credit").toString());
+                credit = Float.parseFloat(returnedItem.get("credit").n());
                 logger.info(String.format("Available credit for plate:%s is %.2f",keyVal,credit));
             }
             else {
@@ -117,7 +112,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             }
             return credit;
 
-        } catch (DynamoDbException | UnknownNumberPlateError e) {
+        } catch (DynamoDbException e) {
             logger.info(String.format("Failed to query the dynamodb table with error: %s",e.getMessage()));
             System.exit(1);
         }
@@ -127,25 +122,30 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
     // charge the account
     public void chargeCustomer(String numberPlateString, Float credit, int charge) {
         String key = "numberPlate";
-        String name = "credit";
-        HashMap<String,AttributeValue> itemKey = new HashMap<String,AttributeValue>();
+        numberPlateString = numberPlateString.replaceAll("\\s+","");
+        HashMap<String,AttributeValue> itemKey = new HashMap<>();
         itemKey.put(key, AttributeValue.builder().s(numberPlateString).build());
 
-        HashMap<String, AttributeValueUpdate> updatedValues =
-                new HashMap<String,AttributeValueUpdate>();
         // build the update payload with changes
-        Float chargedAmount = credit - charge;
-        updatedValues.put(name, AttributeValueUpdate.builder()
-                .value(AttributeValue.builder().n(chargedAmount.toString()).build())
-                .action(AttributeAction.PUT)
-                .build());
+        Float newCredit = credit - charge;
+
+        Map<String,String> expressionAttributeNames = new HashMap<String,String>();
+        expressionAttributeNames.put("#p", "credit");
+
+        Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
+        expressionAttributeValues.put(":charge", AttributeValue.builder().n(Integer.toString(charge)).build());
+        expressionAttributeValues.put(":newcredit", AttributeValue.builder().n(Float.toString(newCredit)).build());
 
         UpdateItemRequest request = UpdateItemRequest.builder()
                 .tableName(System.getenv("DDBTableName"))
                 .key(itemKey)
-                .attributeUpdates(updatedValues)
-                .conditionExpression(String.format("credit >= %d",charge)) // set optional expression parameters
+                .updateExpression("set #p = :newcredit")
+                .conditionExpression("#p >= :charge") // set optional expression parameters
+                .expressionAttributeNames(expressionAttributeNames)
+                .expressionAttributeValues(expressionAttributeValues)
                 .build();
+
+        logger.info(String.format("Charging Number plate %s - new amount=%s, old amount=%s",numberPlateString, newCredit,credit));
 
         // update the record
         try {

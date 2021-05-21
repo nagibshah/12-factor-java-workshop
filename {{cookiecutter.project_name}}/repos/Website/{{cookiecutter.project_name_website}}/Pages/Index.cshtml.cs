@@ -22,6 +22,7 @@ namespace TollRoadManagerWebsite.Pages
         public IndexModel(IAmazonDynamoDB dynamoDB, IAmazonStepFunctions stepFunctions)
         {
             this.ddbClient = dynamoDB;
+
             this.stepFunctionsClient = stepFunctions;
         }
 

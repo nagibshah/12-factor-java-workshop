@@ -39,8 +39,12 @@ Resources:
       Timeout: 30
       Role: 
       Policies:
-      - AWSLambdaFullAccess
+      - AWSLambda_FullAccess
       - AWSStepFunctionsFullAccess
+      - AWSLambdaDynamoDBExecutionRole
+      - AWSLambdaRole
+      - AmazonDynamoDBFullAccess
+      - AWSLambdaInvocation-DynamoDB
       Environment:
         Variables:
           EnvironmentName:

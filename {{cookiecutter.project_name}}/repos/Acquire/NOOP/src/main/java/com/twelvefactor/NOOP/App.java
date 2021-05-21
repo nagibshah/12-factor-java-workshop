@@ -24,12 +24,13 @@ import java.util.UUID;
  *
  * @see <a href=https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html>Lambda Java Handler</a> for more information
  */
-public class App implements RequestHandler<S3Event, String> {
+public class App implements RequestHandler<S3EventNotification, String> {
     private final SfnClient sfnClient;
     private final AWSXRayRecorder xrayRecorder;
     private final SecretsManagerClient secretsManagerClient;
     Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private static final Logger logger = LoggerFactory.getLogger(App.class);
+
     private String regExNumberPlate;
 
     public App() {
@@ -42,7 +43,7 @@ public class App implements RequestHandler<S3Event, String> {
     }
 
     @Override
-    public String handleRequest(S3Event event, Context ctx) {
+    public String handleRequest(S3EventNotification event, Context ctx) {
         logger.info("EVENT Received: " + gson.toJson(event));
         String srcKey, srcBucket;
         Long objectSize;
@@ -72,8 +73,16 @@ public class App implements RequestHandler<S3Event, String> {
         }
 
         // prepare data to be passed to the state machine
-        NumberPlateTrigger result = new NumberPlateTrigger(srcBucket, srcKey, "", objectSize, tollCharge);
-        result.numberPlate = result.new NumberPlate(regExNumberPlate, false);
+        NumberPlateTrigger result = new NumberPlateTrigger();
+        result.setCharge(tollCharge);
+        result.setBucket(srcBucket);
+        result.setKey(srcKey);
+        result.setContentType("");
+        result.setContentLength(objectSize);
+        NumberPlate numberPlate = new NumberPlate();
+        numberPlate.setDetected(false);
+        numberPlate.setNumberPlateString(regExNumberPlate);
+        result.setNumberPlate(numberPlate);
 
         // distributed tracing segments and metadata
         Subsegment subsegment = xrayRecorder.beginSubsegment("TollGantry::Detect Number Plate in Captured Image");
