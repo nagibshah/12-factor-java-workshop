@@ -144,7 +144,7 @@ public class App implements RequestHandler<Object, Object> {
                                     lastname,
                                     input.numberPlate.numberPlateString,
                                     System.getenv("APIGWEndpoint"),
-                                    taskToken
+                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     Content htmlContent = Content.builder()
@@ -159,7 +159,7 @@ public class App implements RequestHandler<Object, Object> {
                                     input.numberPlate.numberPlateString,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
-                                    taskToken
+                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     result = sendMail(subject, mailTo, textContent, htmlContent);
@@ -214,14 +214,15 @@ public class App implements RequestHandler<Object, Object> {
                             .data(String.format("Hello %1$s, An image was captured at a toll booth, " +
                                             "but the Number Plate Processor could not be confident that it could determine the actual number plate on the vehicle. We need your help to take a look at the image," +
                                             "and make a determination." +
-                                            "Please access this link to take a decision: %3$sparse/%4$s/%5$s/5?imageLink=%2$s&taskToken=%6$s" +
+                                            "Please access this link to take a decision: %3$sparse/%4$s/%5$s/5?imageLink=%7$s&taskToken=%6$s" +
                                             " .. Thanks. Toll Road Administrator",
                                     mailTo,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    taskToken
+                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString()),
+                                    URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     Content htmlContent = Content.builder()
@@ -230,14 +231,15 @@ public class App implements RequestHandler<Object, Object> {
                                             "but the Number Plate Processor could not be confident that it could determine the actual number plate on the vehicle. We need your help to take a look at the image," +
                                             "and make a determination.< br />< br />" +
                                             "<img src='%2$s'/><br/><a href='%2$s'>Click here to see the original image if it is not appearing in the email correctly.</a><br/><br/>" +
-                                            "<a href='%3$sparse/%4$s/%5$s/5?imageLink=%2$s&taskToken=%6$s'><b>Click this link to help assess the image and provide the number plate.</b></a><br/>" +
+                                            "<a href='%3$sparse/%4$s/%5$s/5?imageLink=%7$s&taskToken=%6$s'><b>Click this link to help assess the image and provide the number plate.</b></a><br/>" +
                                             "<br/><br/>Thanks<br/><b>Toll Road Administrator.</b><br/><br/>",
                                     mailTo,
                                     imageLink,
                                     System.getenv("APIGWEndpoint"),
                                     input.bucket,
                                     input.key,
-                                    taskToken
+                                    URLEncoder.encode(taskToken, StandardCharsets.UTF_8.toString()),
+                                    URLEncoder.encode(imageLink,StandardCharsets.UTF_8.toString())
                             ))
                             .build();
                     result = sendMail(subject,mailTo, textContent, htmlContent);
