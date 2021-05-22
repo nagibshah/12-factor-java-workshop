@@ -28,12 +28,11 @@ Note: You must have a default VPC in the region you will run the workshop in. If
 11.	In the IDE, locate the bash terminal in the bottom panel. Run the following command to retrieve and execute a pre-prepared shell script, that will perform the following tasks:
 
  -	Upgrade to the latest version of SAM CLI
-
  -	Upgrade to the latest version of AWS CLI
-
  - Install dotnet cli
+ - install Amazon Corretto 11 (Amazon distribution of OpenJDK)
 
-`curl -s -L https://bit.ly/12FactorLabSetupScript | sh`
+`curl -s -L http://bit.ly/12FactorJavaLabSetupScript | sh`
 
 12.	We have created a bundle containing the skeleton of the system you are going to implement as part of this lab today. The bundle includes the step-by-step instructions you will follow once you reach the end of this primer document. During the bundle installation process (which you will run on the AWS Cloud9 IDE) you will be asked a series of questions, prompting you to provide data input. 
 
@@ -41,9 +40,11 @@ Note: You must have a default VPC in the region you will run the workshop in. If
 
 **Note: If you are using a shared account, you must ensure you use a unique project name.**
 
-**Note: Please use a valid email address, preferably a personal one to avoid URL Link Rewrite issues that may be enforced by your coorporate policies** 
+**Note: Please use a valid email address, preferably a personal one to avoid URL Link Rewrite issues that may be enforced by your coorporate policies**
 
-`sam init --location gh:perima/12-factor-dotnet-core-workshop`
+**Note: Solution supports E-mail Sub-addressing (plus sign + to create new email address) if your email provider used for this workshop supports it.** 
+
+`sam init --location gh:nagibshah/12-factor-java-workshop`
 
 13.	When the bundle customisation is complete, open the lab guide contained in the bundle to start the workshop. You can find the lab guide in the labguide folder of the project. Locate the file, right-click and choose **Preview**:
 <img src="images/img05.png" width="50%"/>

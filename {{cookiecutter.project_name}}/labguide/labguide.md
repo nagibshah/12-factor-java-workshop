@@ -86,7 +86,7 @@ In this task you will deploy the baseline environment for your Toll Road Gantry 
 28. For **Repository name** type `{{cookiecutter.project_name_baseline.replace(' ', '-')}}-Staging`
 29. For **RepositoryDescription** type `{{cookiecutter.project_name_baseline}} source code repository for Staging environment`
 30. Click **Create repository**
-31. Your repository will be created, and is now ready to have code checked in. Scroll to the bottom of the CodeCommit window, and not that there are no files in the repository - it has been created empty.
+31. Your repository will be created, and is now ready to have code checked in. Scroll to the bottom of the CodeCommit window, and **NOTE** that there are no files in the repository - it has been created empty.
 32. Back in the terminal window of your AWS Cloud9 IDE, enter the following commands to configure the credential helper to manage credentials for you automatically based on the IAM role attached to your user account:
 
     ```bash
@@ -185,7 +185,11 @@ In this first step you will deploy the **Process** environment for your Toll Roa
 
 43. When you checked the code into the repository, AWS CodePipeline will have triggered a build. You can check the progress of the build [by clicking here to browse to the AWS CodePipeline console](https://{{cookiecutter.AWS_region}}.console.aws.amazon.com/codesuite/codepipeline/pipelines/{{cookiecutter.project_name_process}}/view?region={{cookiecutter.AWS_region}})
 
-    Review the pipeline that has been created. It contains source, build and deployment phases for a staging environment, and a deployment phase for a production environment. The production environment has a manual review gate. Note that there is only one build phase for the pipeline? As per 12-Factor, there is a single immutable deployment artefact created by the build phase and deployed into the Staging environment. After review, the same artefact is deployed into the Prod environment without being rebuilt. This is one reason why it is critical that configuration is kept outside of the build artefact.
+    Take a moment to review the pipeline template (pipeline.yml) as well as the build specifications (buildspec.yml). The template provisions the git repository and sets up the triggers for build utilising AWS CodeBuild once changes are committed and pushed. The pipeline template also defines the stages of the pipeline beyond the build through to a staging and production deployment.
+    
+    Now Review the pipeline that has been created in the console. It contains source, build and deployment phases for a staging environment, and a deployment phase for a production environment. The production environment has a manual review gate. **Notice that there is only one build phase for the pipeline**. 
+    
+    *Pro Tip:* As per 12-Factor, there is a single immutable deployment artefact created by the build phase and deployed into the Staging environment. After review, the same artefact is deployed into the Prod environment without being rebuilt. This is one reason why it is critical that configuration is kept outside of the build artefact.
 
     You can review the progress of the build phase by clicking on the *Details* link in the build phase in AWS CodePipeline. This will open AWS CodeBuild and allow you to view the build logs.
 
@@ -213,11 +217,11 @@ In this task you will deploy the CI/CD pipelines for the **Acquire**, **Agent** 
 
     Once the CI/CD pipeline is deployed and a build is triggered for the **Acquire** (when the source code is checked into the repository by the `setup.part2.sh` script that you are running), you will see another CloudFormation stack appear, called {{cookiecutter.project_name_acquire}}-Staging. This stack takes care of deploying the AWS Lambda functions, S3 bucket and so on defined in the `template.yml` file for the **Acquire** component, which is located in `repos/Acquire/template.yml`. Take some time to review this file to understand how the template defines the infrastructure for the **Acquire** component.
 
-    The `setup.part2.sh` script will take some time to run. Because the **Acquire** component relies on outputs from the **Process** component deployment, and the **Website** component relies on outputs from teh **Acquire** component, the script will wait for the dependencies to build before proceeding, using `aws cloudformation wait stack-exists` commands. Note that these commands have a maximum wait time, and so the script calls the `wait` multiple times. 
+    The `setup.part2.sh` script will take some time to run. Because the **Acquire** component relies on outputs from the **Process** component deployment, and the **Website** component relies on outputs from the **Acquire** component, the script will wait for the dependencies to build before proceeding, using `aws cloudformation wait stack-exists` commands. Note that these commands have a maximum wait time, and so the script calls the `wait` multiple times. 
     
-    Review the `setup.part2.sh` script itself so you understand how it is working to automate the deployment of your infrastructure. 
+    Review the `setup.part2.sh` script itself so you understand how it is working to automate the deployment of your infrastructure. Ideally, the entire environment provisioning is required to be automated. For this you can consider creating a pipeline for environment provisioning and utilising CodeBuild to execute the script in an automated fashion.  
 
-    Also, make use of the time it takes to build out the infrastructure, and review the SAM templates that make up the components:
+    Also, make use of the time it takes to build out the infrastructure, and review the SAM templates that make up the components. :
 
     | Component | Template Path  |
     |---|---|
@@ -225,7 +229,9 @@ In this task you will deploy the CI/CD pipelines for the **Acquire**, **Agent** 
     | Process  | repos/Process/template.yml  |
     | Agent  | repos/Agent/template.yml  |
     | Website  | repos/Website/template.yml  |
-    
+
+    Each component folders also contain their own buildspec.yml and pipeline.yml. Can you think of a benefit of this modularisation with a microservices architecture?   
+
 ---
 
 ### Task 4: Test the Acquire, Process, Agent & Website components (5 minutes)
@@ -261,14 +267,7 @@ Once the {{cookiecutter.project_name_agent}}-Staging is complete, proceed with t
 
 In this section, you will upload an image to test the system end-to-end. Note that no real processing will occur - you need to implement the relevant AWS Lambda functions and the AWS Step Function before  the system will correctly identify number plates. This test will simply confirm that the components are functioning as expected before we move ahead.
 
-54. We have provided a set of test number plates that you can download to your AWS Cloud9 IDE. Run the following commands from your AWS Cloud9 IDE terminal window to retrieve the images:
-
-    ```bash
-    cd ~/environment/{{cookiecutter.project_name}}
-    aws s3 cp s3://awlarau-workshops-us-east-1/12FactorWorkshop/numberplates.zip  ~/environment/{{cookiecutter.project_name}}/numberplates.zip
-    unzip ~/environment/{{cookiecutter.project_name}}/numberplates.zip
-    rm ~/environment/{{cookiecutter.project_name}}/numberplates.zip
-    ```
+54. We have provided a set of test number plates with this bundle that you can utilise to simulate a vehicle passing under a toll gantry. Notice the numberplates folder in `~/environment/{{cookiecutter.project_name}}/numberplates`.
 
 55. To simulate a car passing through a toll gate gantry, we will upload an image of a number plate to the S3 bucket that has been configured to trigger the AWS Step Function in the *Acquire* component. Upload an image using the following command:
 
@@ -288,7 +287,7 @@ In this section, you will upload an image to test the system end-to-end. Note th
 
 #### Test the admin website functionality
 
-60. The website will open to the **Toll Road Number Plate Manual Decider** page, and show the uploaded image. In the text entry field, type `TESTPLATE` and click **Submit this number plate**
+60. The website will open to the **Toll Road Number Plate Manual Decider** page, and show the uploaded image. In the text entry field, type `TESTPLATE` and click **Submit this number plate**. We are overwriting the actual number plate with "TESTPLATE" to ensure a forced execution of the all the steps of the state machine for the purpose of an initial test.
 61. The page will refresh and show **Thank you for helping, your submission was accepted!**
 62. On the AWS Step Function console, note that the **Visual workflow** will now show the **state.process.AdminActiontest** state as complete (green) and the **state.process.InsufficientCreditTest** state as running (blue)
 
@@ -316,7 +315,7 @@ In this section, you will upload an image to test the system end-to-end. Note th
 
 ---
 
-The system so far is functional, but incomplete. In this task you will implement the following items in the **Acquire** and **Process** components:
+The system so far is functional, but incomplete. This is where the fun begins where you get to build/implement the following items in the **Acquire** and **Process** components:
 
 
 ##### Acquire
@@ -333,53 +332,57 @@ The system so far is functional, but incomplete. In this task you will implement
 #### Instructions
 
 
-#### Implement code to retrieve the Number Plate RegEx from AWS Secrets Manager in the **repos/Acquire/UploadTrigger/index.js** file
+#### Implement code to retrieve the Number Plate RegEx from AWS Secrets Manager in the **repos/Acquire/UploadTrigger/src/main/java/com/twelvefactor/uploadtrigger/App.java** file
 
 68. Open the AWS Secrets Manager console [using this link](https://{{cookiecutter.AWS_region}}.console.aws.amazon.com/secretsmanager/home?region={{cookiecutter.AWS_region}}#/listSecrets), and click on the link for Staging/{{cookiecutter.project_name}}/Metadata. Be sure to open the link in a new tab/window in the browser.
-69. Scroll down to the **Sample code** section and select **C#**
+69. Scroll down to the **Sample code** section and select **JavaV2**
 70. Note how the sample code instantiates the SecretsManager client?
 
-    ```csharp
-    IAmazonSecretsManager client = new AmazonSecretsManagerClient(RegionEndpoint.GetBySystemName(region));
+    ```java
+    SecretsManagerClient client = SecretsManagerClient.builder()
+            .region(region)
+            .build();
     ```
 
     Once the client is instantiated, a secret can be retrieved by calling:
 
-    ```csharp
-    response = client.GetSecretValueAsync(request);
+    ```java
+    getSecretValueResponse = client.getSecretValue(getSecretValueRequest);
     ```
 
     In our case, we are using the SecretString parameter as a property bag, and the string itself is a JSON object. The number plate regular expression we need is stored in this serialised object, as a property called `NumberPlateRegEx`.
 
-71. In your AWS Cloud9 IDE, locate the **repos/Acquire/UploadTrigger/Function.cs** Lambda function and open it in the IDE
-72. Locate the function **getNumberPlateFromSecretsManager** in the source code and note that it simply returns `.*` as the regular expression. Your task here is to modify this function so that it correctly returns the `NumberPlateRegEx` value that is stored in AWS Secrets Manager, using the sample code as inspiration. The pseudo code for your implementation should do the following:
+71. In your AWS Cloud9 IDE, locate the **repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/App.java** Lambda function and open it in the IDE. Notice the **DependencyFactory.java** file which implements a factory pattern to instantiate the relevant service objects for AWS. The secrets manager client can be implemented in similar fashion to the already existing **S3Client** dependency.
+72. Locate the function **getNumberPlateFromSecretsManager** in the App.java source code and note that it simply returns `.*` as the regular expression. Your task here is to modify this function so that it correctly returns the `NumberPlateRegEx` value that is stored in AWS Secrets Manager, using the sample code as inspiration. The pseudo code for your implementation should do the following:
 
-  -   Instantiate the SecretsManager client object from the AWS SDK (note that when you construct the client, you do not have to specify endpoint and region).
-  -   Call `GetSecretValueAsync(context)` to retrieve the secret.
+  -   Instantiate the SecretsManager client object from the AWS SDK (note that when you construct the client, you do not have to specify the api endpoint).
+  -   Call `getSecretValue(getSecretValueRequest)` to retrieve the secret. Do not forget to build the **getSecretValueRequest** payload before calling this method.
   -   Handle errors - in all cases, log the error and then simply return a valid regular expression such as `.*`. In a real environment implementation, you would handle errors robustly, but for this workshop, simply falling back to a 'catch all' expression is ok
-  -   Assuming all is ok, dereference the `SecretString` field of the return object and parse it as JSON using `JsonConvert.DeserializeObject(...)`
+  -   Assuming all is ok, dereference the `secretString()` method of the return object and parse it as JSON using `gson.fromJson(decodedSecret,type);`. NOTE: the response payload is of type **HashMap<String, String>**. Further information about the deserializer can be found [here](https://github.com/google/gson/blob/master/UserGuide.md).
   -   In the resulting object, dereference the `NumberPlateRegEx` property to get the value to return from the function.
 
-      Note: If you get stuck and want to skip coding this function by hand, you will find a finished version of the function in UploadTrigger/getNumberPlateFromSecretsManager.txt
+      Note: If you get stuck and want to skip coding this function by hand, you will find a finished version of the function in **repos/Acquire/uploadtrigger/full-completed-code.txt**
 
 #### Implement code to trigger the AWS Step Function in the **repos/Acquire/UploadTrigger/Function.cs** file
 
-73. In the same **UploadTrigger/Function.cs** file, locate the line `// TODO: Call the Step Function using the AWS SDK`.
-74. [Refer to the documentation here](https://docs.aws.amazon.com/sdkfornet/v3/apidocs/items/StepFunctions/MStepFunctionsStartExecutionStartExecutionRequest.html) and call the `StartExecutionAsync` method of the `AmazonStepFunctionsClient` client object, passing in the `StartExecutionRequest` object that has already been constructed in the code provided. The StartExecutionRequest object has the ARN of the state machine to trigger, and the input object to pass in:
+73. In the same **repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/App.java** file, locate the line `// TODO: Call the Step Function using the AWS SDK`.
+74. [Refer to the sample code here](https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/javav2/example_code/stepfunctions/src/main/java/com/example/stepfunctions/StartExecution.java) and call the `startExecution(...)` method of the `sfnClient` client object, passing in the `executionRequest` object that has already been constructed in the code provided. The StartExecutionRequest object has the ARN of the state machine to trigger, a uuid to uniquely identify the execution run, and the input object to pass in:
 
-    ```csharp
-    new StartExecutionRequest() { 
-      StateMachineArn = Environment.GetEnvironmentVariable("NumberPlateProcessStateMachine"), 
-      Input = JsonConvert.SerializeObject(result) }
+    ```java
+    StartExecutionRequest executionRequest = StartExecutionRequest.builder()
+                    .input(gson.toJson(result))
+                    .stateMachineArn(System.getenv("NumberPlateProcessStateMachine"))
+                    .name(uuid)
+                    .build();
     ```
 
-    Note: If you get stuck and want to skip coding this function by hand, you will find a finished version of the function in UploadTrigger/Function.full
+    Note: If you get stuck and want to skip coding this function by hand, you will find a finished version of the function in **repos/Acquire/uploadtrigger/full-completed-code.txt** file.
 
-75. After making all the changes, save the **repos/Acquire/UploadTrigger/Function.cs** file in the AWS Cloud9 IDE.
+75. After making all the changes, save the **repos/Acquire/uploadtrigger/src/main/java/com/twelvefactor/uploadtrigger/App.java** file in the AWS Cloud9 IDE.
 76. The SAM template that was provided for you initially defines an AWS Lambda function as a placeholder, and that doesn't perform any real work - called **NOOP** (No Operation). In order for the S3 upload trigger to fire the **UploadTrigger** Lambda function, you need to edit the template so that it refers to the updated function. In the AWS Cloud9 IDE, open the file **repos/Acquire/template.yml**
 77. Locate the **Resource** called `UploadTrigger`
-78. Within this resource, locate the `Handler:` property and note that it is set to `NOOP::UploadTrigger.Function::FunctionHandler`
-79. Modify the `Handler:` value, setting it to `UploadTrigger::UploadTrigger.Function::FunctionHandler` instead. This will instruct the template to update the S3 upload trigger to fire the `UploadTrigger` Lambda function
+78. Within this resource, locate the `Handler:` & `CodeUri:` properties and note that it is set to `com.twelvefactor.NOOP.App::handleRequest` & `./NOOP` respectively.
+79. Modify the `Handler:` value, setting it to `com.twelvefactor.uploadtrigger.App::handleRequest` instead. Also, modify the `CodeUri:` property and set it to `./uploadtrigger`. This will instruct the template to update the S3 upload trigger to fire the `UploadTrigger` Lambda function
 
 #### Deploy the changes using CI/CD
 
@@ -397,29 +400,34 @@ The system so far is functional, but incomplete. In this task you will implement
 
 #### Implement code to throw various errors from the AWS Lambda Function in the **repos/Process/PlateDetected/Function.cs** file
 
-83. In your AWS Cloud9 IDE, locate the **repos/Process/PlateDetected/Function.cs** Lambda function and open it in the IDE
+83. In your AWS Cloud9 IDE, locate the **repos/Process/platedetected/src/main/java/com/twelvefactor/platedetected/App.java** Lambda function and open it in the IDE
 84. Locate each of the `TODO:` items in the file. Your task here is to throw an exception at each of the points errors are detected, and return the application-specific error objects as specified in the source code. Each of the error types have been provided as objects defined in the `Functions.cs`. You simply need to use the `throw` statement to return a newly instantiated object of the various error types. When your code returns these objects, the state machine will be able to make branching logic decisions accordingly. Each of the `TODO` items specifies the types you need to pass to the `state mechine`, and where appropriate, you can use the related `message` variable and `context.Logger.LogLine` statements as inspiration for the error message content to construct the error objects with. For example, search for `TODO: Return 'errorInsufficientCredit' error`. The source code looks like this:
 
-      ```csharp
-      else
-      {
-          string message = "Driver for number plate " + payload.numberPlate.numberPlateString + "(" + document["ownerFirstName"] + ")" + document["ownerLastName"] + ") has insufficient credit (" + document["credit"] + ") for a charge of " + payload.charge;
-
-          context.Logger.LogLine(message);
-
-          /////////////////////////////////////////////////////////////
-          //
-          // TODO: Return 'errorInsufficientCredit' error
-          //
-          /////////////////////////////////////////////////////////////                            
-      } 
+      ```java
+      if (credit > payload.charge) {
+            // charge the customer
+            logger.info("Charging the customer");
+            chargeCustomer(payload.numberPlate.numberPlateString, credit, payload.charge);
+        } else {
+            String msg = String.format("Driver for number plate %s has insufficient credit %.2f for a charge of %d",
+                    payload.numberPlate.numberPlateString,
+                    credit,payload.charge);
+            logger.error(msg);
+            /////////////////////////////////////////////////////////////
+            //
+            // TODO: Throw 'InsufficientCreditError' exception
+            //
+            /////////////////////////////////////////////////////////////
+        }
       ```
 
-      You need to replace the `TODO` section with `throw new InsufficientCreditError(message);` to direct the state machine to be able to handle the error condition for *InsufficientCredit*. Note that the `errorInsufficientCredit` object is constructed with a string parameter that is used as a message or reason for the error being returned. Be sure to implement the correct error names based on the conditions as stated in the source code `TODO` sections, otherwise the state machine logic will not make sense later.
+      You need to replace the `TODO` section with `throw new InsufficientCreditError(msg);` to direct the state machine to be able to handle the error condition for *InsufficientCredit*. Note that the `InsufficientCreditError` extends the RuntimeException and takes a string parameter that is used as a message or reason for the error being returned. Be sure to implement the correct error/exception names based on the conditions as stated in the source code `TODO` sections, otherwise the state machine logic will not make sense later.
 
-      **Note:** If you get stuck and want to skip coding this function by hand, you will find a finished version of the full file at **Process/PlateDetected/Function.full**. To use it, simply replace the contents of **Process/PlateDetected/Function.cs** with the contents of **Process/PlateDetected/Function.full**. You can also use **Process/PlateDetected/Function.full** as inspiration if you get stuck.
+      **Note:** If you get stuck and want to skip coding this function by hand, you will find a finished version of the full file at **Process/platedetected/full-completed-code.txt**. To use it, simply replace the contents of **repos/Process/platedetected/src/main/java/com/twelvefactor/platedetected/App.java** with the contents of **Process/platedetected/full-completed-code.txt**. You can also use **full-completed-code.txt** as inspiration if you get stuck.
 
-85. After making all the changes, save the **repos/Process/PlateDetected/Function.cs** file in the AWS Cloud9 IDE.
+      **Pro Tip:** Read up on the enhanced DynamoDB [here](https://aws.amazon.com/blogs/developer/introducing-enhanced-dynamodb-client-in-the-aws-sdk-for-java-v2/) which hugely simplifies DynamoDB operations. This enhanced DynamoDB module provides a more idiomatic code authoring experience. You can now integrate applications with Amazon DynamoDB using an adaptive API that allows you to execute database operations directly with the data classes your application already works with. What changes would you make to the `getItem(request)` operations in this code base to make use of the enhanced features?
+
+85. After making all the changes, save the **repos/Process/platedetected/src/main/java/com/twelvefactor/platedetected/App.java** file in the AWS Cloud9 IDE.
 
 #### Deploy the changes using CI/CD
 
