@@ -56,6 +56,8 @@ public class App implements RequestHandler<S3EventNotification, String> {
 
     @Override
     public String handleRequest(S3EventNotification event, Context ctx) {
+        // TODO: invoking the api call using s3Client.
+
         logger.info("EVENT Received: " + gson.toJson(event));
         String srcKey, srcBucket;
         Long objectSize;
@@ -158,24 +160,58 @@ public class App implements RequestHandler<S3EventNotification, String> {
         logger.info("Starting the state machine");
         // specify the name of the execution using a guid value
         String uuid = UUID.randomUUID().toString();
-        ////////////////////////////////////////////////////////////
-        //
-        // TODO: add code to start the state machine
-        //
-        /////////////////////////////////////////////////////////////
-
+        try {
+            StartExecutionRequest executionRequest = StartExecutionRequest.builder()
+                    .input(gson.toJson(result))
+                    .stateMachineArn(System.getenv("NumberPlateProcessStateMachine"))
+                    .name(uuid)
+                    .build();
+            StartExecutionResponse executionResponse = sfnClient.startExecution(executionRequest);
+            logger.info(String.format("State Machine started with execution arn: %s",executionResponse.executionArn()));
+        } catch (SfnException e) {
+            logger.error(String.format("Failed to trigger the step function workflow with error: %s", e.getMessage()));
+            System.exit(1);
+        }
 
         logger.info("Successfully processed s3 event.");
         return "Ok";
     }
 
     private String getSecretFromSecretsManager(SecretsManagerClient secretsClient, String secretName) {
-        ////////////////////////////////////////////////////////////
-        //
-        // TODO: Call secrets manager to retrieve the plate number regex
-        //
-        /////////////////////////////////////////////////////////////
-        return ".*";
+        String regex;
+        // get the secret from the secret manager
+        try {
+            GetSecretValueRequest valueRequest = GetSecretValueRequest.builder()
+                    .secretId(secretName)
+                    .versionStage("AWSCURRENT") // VersionStage defaults to AWSCURRENT if unspecified.
+                    .build();
+            GetSecretValueResponse valueResponse = secretsClient.getSecretValue(valueRequest);
+
+            // Depending on whether the secret is a string or binary, one of these fields will be populated
+
+            if (valueResponse.secretString() != null) {
+                String decodedSecret = valueResponse.secretString();
+                logger.info("Secret value is " + decodedSecret);
+                Type type = new TypeToken<HashMap<String, String>>(){}.getType();
+                HashMap<String, String> deserialized = gson.fromJson(decodedSecret,type);
+                regex = deserialized.get("NumberPlateRegEx");
+            }
+            else {
+                SdkBytes secretBlob = valueResponse.secretBinary();
+                String decodedBinarySecret = StandardCharsets.UTF_8.decode(Base64.getDecoder().decode(secretBlob.asByteBuffer())).toString();
+                //new String(Base64.getDecoder().decode(valueResponse.secretBinary().asByteBuffer()).array());
+                Type type = new TypeToken<HashMap<String, String>>(){}.getType();
+                HashMap<String, String> deserialized = gson.fromJson(decodedBinarySecret,type);
+                regex = deserialized.get("NumberPlateRegEx");
+            }
+        } catch (SecretsManagerException e) {
+            logger.error(String.format("Failed to get secret from secrets manager with error %s",e.awsErrorDetails().errorMessage()));
+            regex = null;
+        }
+
+        logger.info("NumberPlateRegEx value is " + regex);
+
+        return regex;
     }
 
 }

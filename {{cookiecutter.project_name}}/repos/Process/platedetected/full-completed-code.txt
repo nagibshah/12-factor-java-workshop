@@ -36,17 +36,14 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
 
     @Override
     public NumberPlateTrigger handleRequest(final NumberPlateTrigger payload, final Context context) {
+        // TODO: invoking the api call using s3Client.
         logger.info(String.format("Plate Detected event: %s", gson.toJson(payload)));
         Random rand = new Random();
         rand.setSeed(System.currentTimeMillis()/1000); // seconds since the unix epoch
         if (rand.nextDouble() <= Double.parseDouble(System.getenv("RandomProcessingErrorProbability"))) {
             String msg = "Congratulations! A random processing error has occurred!";
             logger.info(msg);
-            ////////////////////////////////////////////////////////////
-            //
-            // TODO: Throw 'RandomProcessingError' exception
-            ///
-            /////////////////////////////////////////////////////////////
+            throw new RandomProcessingError(msg);
         }
 
         Float credit = getAvailableCredit(dynamoDbClient,
@@ -62,21 +59,12 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
                     payload.numberPlate.numberPlateString,
                     credit,payload.charge);
             logger.error(msg);
-            /////////////////////////////////////////////////////////////
-            //
-            // TODO: Throw 'InsufficientCreditError' exception
-            //
-            /////////////////////////////////////////////////////////////
+            throw new InsufficientCreditError(msg);
         }
 
         return payload;
     }
 
-    public class DatabaseAccessError extends  RuntimeException {
-        public  DatabaseAccessError(String message) {
-            super(message);
-        }
-    }
 
     public class RandomProcessingError extends RuntimeException {
         public  RandomProcessingError(String message) {
@@ -120,21 +108,12 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             else {
                 String msg = String.format("Number plate %s was not found. This will require manual resolution",keyVal);
                 logger.error(msg);
-                /////////////////////////////////////////////////////////////
-                //
-                // TODO: Throw 'UnknownNumberPlateError' Exception
-                //
-                /////////////////////////////////////////////////////////////
+                throw new UnknownNumberPlateError(msg);
             }
             return credit;
 
         } catch (DynamoDbException e) {
             logger.info(String.format("Failed to query the dynamodb table with error: %s",e.getMessage()));
-            ////////////////////////////////////////////////////////////
-            //
-            // TODO: Throw 'DatabaseAccessError' Exception
-            ///
-            /////////////////////////////////////////////////////////////
             System.exit(1);
         }
         return credit;
@@ -150,7 +129,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
         // build the update payload with changes
         Float newCredit = credit - charge;
 
-        Map<String,String> expressionAttributeNames = new HashMap<>();
+        Map<String,String> expressionAttributeNames = new HashMap<String,String>();
         expressionAttributeNames.put("#p", "credit");
 
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
@@ -173,11 +152,6 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             dynamoDbClient.updateItem(request);
         } catch (DynamoDbException e) {
             logger.info(String.format("Failed to update the %s number plate record with error: %s",numberPlateString,e.getMessage()));
-            ////////////////////////////////////////////////////////////
-            //
-            // TODO: Throw 'DatabaseAccessError' Exception
-            ///
-            /////////////////////////////////////////////////////////////
             System.exit(1);
         }
     }
