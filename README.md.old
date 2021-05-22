@@ -4,6 +4,6 @@
 
 mvn -B archetype:generate \
 -DarchetypeGroupId=software.amazon.awssdk \
--DarchetypeArtifactId=archetype-lambda -Dservice=s3 -Dregion=US_EAST_1 \
+-DarchetypeArtifactId=archetype-lambda -Dservice=s3 -Dregion={{cookiecutter.AWS_region}} \
 -DgroupId=com.12factor.uploadtrigger \
 -DartifactId=uploadtrigger
