@@ -40,7 +40,7 @@ Note: You must have a default VPC in the region you will run the workshop in. If
 
 **Note: If you are using a shared account, you must ensure you use a unique project name.**
 
-**Note: Please use a valid email address, preferably a personal one to avoid URL Link Rewrite issues that may be enforced by your coorporate policies**
+**Note: Please use a valid email address, preferably a personal one to avoid URL Link Rewrite issues that may be enforced by your corporate policies**
 
 **Note: Solution supports E-mail Sub-addressing (plus sign + to create new email address) if your email provider used for this workshop supports it.** 
 
