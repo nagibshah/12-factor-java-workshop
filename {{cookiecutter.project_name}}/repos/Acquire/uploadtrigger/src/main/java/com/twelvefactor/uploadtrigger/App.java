@@ -78,7 +78,7 @@ public class App implements RequestHandler<S3EventNotification, String> {
 
 
         if (regExNumberPlate == null) {
-            logger.info("regExNumberPlate is not yet populated. Calling getNumberPlateFromSecretsManager()...");
+            logger.info("regExNumberPlate is not yet populated. Calling getSecretFromSecretsManager()...");
             // get the plate from secrets manager
             String secretName = "/Staging/{{cookiecutter.project_name}}/Metadata";
             regExNumberPlate = this.getSecretFromSecretsManager(secretsManagerClient,secretName);
