@@ -160,7 +160,7 @@ public class App implements RequestHandler<S3EventNotification, String> {
         String uuid = UUID.randomUUID().toString();
         ////////////////////////////////////////////////////////////
         //
-        // TODO: add code to start the state machine
+        // TODO: Call the Step Function using the AWS SDK
         //
         /////////////////////////////////////////////////////////////
 
