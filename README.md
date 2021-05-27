@@ -25,14 +25,16 @@ Note: You must have a default VPC in the region you will run the workshop in. If
 **Note**: Now that now that your IDE is set up, all other tasks for this workshop will be executed on the AWS Cloud9 environment. Do not run the following instructions on your local laptop - instead, run them in the AWS Cloud9 IDE.
 
 
-11.	In the IDE, locate the bash terminal in the bottom panel. Run the following command to retrieve and execute a pre-prepared shell script, that will perform the following tasks:
+11.	In the IDE, locate the bash terminal in the bottom panel. Run the following command to retrieve and execute a pre-prepared shell script.
+
+```curl -s -L http://bit.ly/12FactorJavaLabSetupScript | sh```
+
+This command  will then perform the following tasks:
 
  -	Upgrade to the latest version of SAM CLI
  -	Upgrade to the latest version of AWS CLI
  - Install dotnet cli
  - install Amazon Corretto 11 (Amazon distribution of OpenJDK)
-
-```curl -s -L http://bit.ly/12FactorJavaLabSetupScript | sh```
 
 12.	We have created a bundle containing the skeleton of the system you are going to implement as part of this lab today. The bundle includes the step-by-step instructions you will follow once you reach the end of this primer document. During the bundle installation process (which you will run on the AWS Cloud9 IDE) you will be asked a series of questions, prompting you to provide data input. 
 
