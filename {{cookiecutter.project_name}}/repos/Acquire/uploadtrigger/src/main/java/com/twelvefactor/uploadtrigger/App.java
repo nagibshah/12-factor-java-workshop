@@ -138,7 +138,7 @@ public class App implements RequestHandler<S3EventNotification, String> {
                 if (!StringUtils.isEmpty(plateNumber.toString())) {
                     result.numberPlate.detected = true;
                     result.numberPlate.confidence = textItem.confidence();
-                    result.numberPlate.numberPlateString = plateNumber.toString().replaceAll("\\s+",""); // remove whitespaces
+                    result.numberPlate.numberPlateString = plateNumber.toString().replaceAll("[^A-Za-z0-9]",""); // remove non-alphanumeric characters
                     logger.info(String.format("A valid plate number was detected %s", plateNumber));
                 }
             }

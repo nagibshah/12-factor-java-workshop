@@ -13,7 +13,7 @@
     "dynamodb_tablename": "{{cookiecutter.project_name.replace(' ', '-')}}-Accounts",
     "stepfunction_name": "{{cookiecutter.project_name}}",
     "AWS_region" : "ap-southeast-2",
-    "numberplate_regex" : "^([A-Z0-9]{3})[vV ]*([A-Z0-9]{3})$",
+    "numberplate_regex" : "^([A-Z0-9]{3})[^A-Z0-9a-z]*([A-Z0-9]{3})$",
     "codeupload_bucket_name": "{{cookiecutter.project_name|lower|replace(' ', '-')}}-{{cookiecutter.your_name|lower|replace(' ', '-')}}-{% now 'utc', '%m%s' %}-code",
     "imageupload_bucket_name": "{{cookiecutter.project_name|lower|replace(' ', '-')}}-{{cookiecutter.your_name|lower|replace(' ', '-')}}-{% now 'utc', '%m%s' %}-uploads"
 }
