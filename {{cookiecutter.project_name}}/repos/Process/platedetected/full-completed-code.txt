@@ -116,9 +116,9 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             String msg = String.format("Failed to query the dynamodb table with error: %s",e.getMessage());
             logger.error(msg);
             throw new DatabaseAccessError(msg);
-            System.exit(1);
+            // System.exit(1);
         }
-        return credit;
+        // return credit;
     }
 
     // charge the account
@@ -156,7 +156,7 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
             String msg = String.format("Failed to update the %s number plate record with error: %s",numberPlateString,e.getMessage());
             logger.error(msg);
             throw new DatabaseAccessError(msg);
-            System.exit(1);
+            // System.exit(1);
         }
     }
 }
