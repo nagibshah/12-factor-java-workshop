@@ -65,6 +65,11 @@ public class App implements RequestHandler<NumberPlateTrigger, Object> {
         return payload;
     }
 
+    public class DatabaseAccessError extends  RuntimeException {
+        public  DatabaseAccessError(String message) {
+            super(message);
+        }
+    }
 
     public class RandomProcessingError extends RuntimeException {
         public  RandomProcessingError(String message) {
