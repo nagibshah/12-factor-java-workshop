@@ -401,7 +401,8 @@ The system so far is functional, but incomplete. This is where the fun begins wh
 #### Implement code to throw various errors from the AWS Lambda Function in the **repos/Process/PlateDetected/Function.cs** file
 
 83. In your AWS Cloud9 IDE, locate the **repos/Process/platedetected/src/main/java/com/twelvefactor/platedetected/App.java** Lambda function and open it in the IDE
-84. Locate each of the `TODO:` items in the file. Your task here is to throw an exception at each of the points errors are detected, and return the application-specific error objects as specified in the source code. Each of the error types have been provided as objects defined in the `Functions.cs`. You simply need to use the `throw` statement to return a newly instantiated object of the various error types. When your code returns these objects, the state machine will be able to make branching logic decisions accordingly. Each of the `TODO` items specifies the types you need to pass to the `state mechine`, and where appropriate, you can use the related `message` variable and `context.Logger.LogLine` statements as inspiration for the error message content to construct the error objects with. For example, search for `TODO: Throw 'InsufficientCreditError' exception`. The source code looks like this:
+84. Locate each of the `TODO:` items in the file. Your task here is to throw an exception at each of the points errors are detected, and return the application-specific error objects as specified in the source code. Each of the error types have been provided as objects defined in the `App.java`. You simply need to use the `throw` statement to return a newly instantiated object of the various error types. When your code returns these objects, the state machine will be able to make branching logic decisions accordingly. Each of the `TODO` items specifies the types you need to pass to the `state mechine`, and where appropriate, you can use the related `msg` variable and `logger.error` statements as inspiration for the error message content to construct the error objects with. For example, search for `TODO: Return 'errorInsufficientCredit' error`. The source code looks like this:
+
 
       ```java
       if (credit > payload.charge) {
@@ -490,7 +491,7 @@ Note that this section requires you to manually create the AWS Step Function wor
 
         ```json
         "Retry": [{
-          "ErrorEquals": ["RandomProcessingError"],
+          "ErrorEquals": ["com.twelvefactor.platedetected.App$RandomProcessingError"],
           "IntervalSeconds": 1,
           "BackoffRate": 2.0,
           "MaxAttempts": 2
@@ -559,6 +560,8 @@ Note that this section requires you to manually create the AWS Step Function wor
 95. [Click on this link](https://{{cookiecutter.AWS_region}}.console.aws.amazon.com/states/home?region={{cookiecutter.AWS_region}}#/statemachines) to open the AWS Step Functions console to see a list of the available state machines, and click on the link for the *{{cookiecutter.stepfunction_name}}-Staging* state machine.
 96. There should be a new execution in the list, that started recently (check the **Started** column). If there is no indication of a very recent execution, you may have a problem with your Acquire::UploadTrigger Lambda function. Check the CloudWatch Logs.
 97. Assuming you have a recent execution, click on the link for that most-recent execution shown in the list, and review the **Visual workflow** of the state machine. If everything is correctly configured, it will show a successful run of the state machine. If your execution is not showing this, please consult your instructor for assistance.
+
+NOTE: You might see the random processing error trigger during this step. Notice the retry logic triggering and after max attempt going into a failed state. If this happens simply proceed to the next step for subsequent tests.
 
 #### Confirm receipt of the email and subsequent flow for the Insufficient Credit workflow
 

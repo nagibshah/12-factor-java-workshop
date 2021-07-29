@@ -134,7 +134,8 @@ public class App implements RequestHandler<S3EventNotification, String> {
                 StringBuilder plateNumber = new StringBuilder();
                 Matcher m = Pattern.compile(regExNumberPlate).matcher(textItem.detectedText());
                 while (m.find()) {
-                    plateNumber.append(m.group());
+                    //plateNumber.append(m.group());
+                    plateNumber.append(m.group(1) + m.group(2));
                     //allMatches.add(m.group());
                 }
                 if (!StringUtils.isEmpty(plateNumber.toString())) {

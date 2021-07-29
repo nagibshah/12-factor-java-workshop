@@ -32,7 +32,7 @@
                   "Resource": "${lambdaArnPlateDetected}",
                   "Next": "state.process.Complete",
                   "Retry": [{
-                    "ErrorEquals": ["RandomProcessingError"],
+                    "ErrorEquals": ["com.twelvefactor.platedetected.App$RandomProcessingError"],
                     "IntervalSeconds": 1,
                     "BackoffRate": 2.0,
                     "MaxAttempts": 2
