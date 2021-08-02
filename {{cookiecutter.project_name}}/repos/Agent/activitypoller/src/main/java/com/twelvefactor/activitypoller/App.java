@@ -227,9 +227,9 @@ public class App implements RequestHandler<Object, Object> {
                             .build();
                     Content htmlContent = Content.builder()
                             .charset("UTF-8")
-                            .data(String.format("Hello %1$s,< br />< br /> An image was captured at a toll booth, " +
+                            .data(String.format("Hello %1$s,<br/><br/> An image was captured at a toll booth, " +
                                             "but the Number Plate Processor could not be confident that it could determine the actual number plate on the vehicle. We need your help to take a look at the image," +
-                                            "and make a determination.< br />< br />" +
+                                            "and make a determination.<br/><br/>" +
                                             "<img src='%2$s'/><br/><a href='%2$s'>Click here to see the original image if it is not appearing in the email correctly.</a><br/><br/>" +
                                             "<a href='%3$sparse/%4$s/%5$s/5?imageLink=%7$s&taskToken=%6$s'><b>Click this link to help assess the image and provide the number plate.</b></a><br/>" +
                                             "<br/><br/>Thanks<br/><b>Toll Road Administrator.</b><br/><br/>",
